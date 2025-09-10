@@ -87,6 +87,10 @@ namespace IndexerLib.Tokens
                     doubleQuotesDetected = false;
                     inWord = false;
                 }
+
+                // avoid artifically long words in pdf with ocr
+                if (stringBuilder.Length > 30)
+                    stringBuilder.Clear();
             }
 
             // Handle last word if the text ends in one
@@ -110,7 +114,7 @@ namespace IndexerLib.Tokens
 
                 // Add token if not already in dictionary
                 if (!tokens.ContainsKey(cleanedWord))
-                    tokens[cleanedWord] = new Token { SHA256 = pathId };
+                    tokens[cleanedWord] = new Token { DocId = pathId };
 
                 // Record posting (occurrence) for this word
                 tokens[cleanedWord].Postings.Add(new Posting

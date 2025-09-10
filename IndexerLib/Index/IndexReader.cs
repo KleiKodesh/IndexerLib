@@ -1,4 +1,5 @@
-﻿using IndexerLib.Helpres;
+﻿using IndexerLib.Helpers;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,25 +13,41 @@ namespace IndexerLib.Index
     /// Supports retrieving stored blocks by string key or hash,
     /// as well as enumerating all indexed keys.
     /// </summary>
-    public class IndexReader : IndexerBase
+    public class IndexReader : IndexerBase, IDisposable
     {
-        const ushort MagicMarker = 0xCAFE;      // Marker value used in footer to verify file integrity
+        const ushort MagicMarker = 0xCAFE;  // Marker value used in footer to verify file integrity
 
-        readonly SHA256 _sha256;                // Hashing algorithm used for generating key identifiers (SHA-256)
+        readonly SHA256 _sha256;                   // Hashing algorithm used for generating key identifiers (SHA-256)
         readonly ByteArrayComparer _byteComparer;  // Custom comparer for comparing byte[] hashes in binary search
-        readonly FileStream _fileStream;         // File stream pointing to the index file
-        readonly MyBinaryReader _reader;         // Custom binary reader that supports 7-bit encoding
+        readonly FileStream _fileStream;           // File stream pointing to the index file
+        readonly MyBinaryReader _reader;           // Custom binary reader that supports 7-bit encoding
 
         private long _indexStart;     // The starting byte offset of the index table within the file
         private int _indexCount;      // Total number of entries (keys) in the index
 
+
+        IEnumerator<IndexKey> _enumerator;
+        public IEnumerator<IndexKey> Enumerator
+        {
+            get
+            {
+                if (_enumerator == null)
+                    _enumerator = GetAllKeys().GetEnumerator();
+                return _enumerator;
+            }
+        }
+
         /// <summary>
         /// Initializes an IndexReader instance for reading stored tokens.
         /// </summary>
-        public IndexReader()
+        public IndexReader(string path = "")
         {
+            if(!string.IsNullOrEmpty(path))
+                TokenStorePath = path;
+
+            EnsureTokenStorePath();
             if (!File.Exists(TokenStorePath))
-                return;
+                throw new Exception("Index file does not exist");
 
             _fileStream = new FileStream(TokenStorePath, FileMode.Open, FileAccess.Read);
             _reader = new MyBinaryReader(_fileStream, Encoding.UTF8, leaveOpen: true);

@@ -1,7 +1,7 @@
 ﻿using System.IO;
 using System.Text;
 
-namespace IndexerLib.Helpres
+namespace IndexerLib.Helpers
 {
     class MyBinaryWriter : BinaryWriter
     {

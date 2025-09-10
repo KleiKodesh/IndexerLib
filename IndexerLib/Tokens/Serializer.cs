@@ -1,4 +1,4 @@
-﻿using IndexerLib.Helpres;
+﻿using IndexerLib.Helpers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -16,7 +16,7 @@ namespace IndexerLib.Tokens
             using (var stream = new MemoryStream())
             using (var writer = new MyBinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
             {
-                writer.Write7BitEncodedInt(token.SHA256);
+                writer.Write7BitEncodedInt(token.DocId);
                 writer.Write7BitEncodedInt(token.Postings.Count); // Store posting count for efficient deserialization
                 
                 var postings = token.Postings.OrderBy(x => x.Position);
@@ -64,7 +64,7 @@ namespace IndexerLib.Tokens
         {
             try
             {
-                var token = new Token { SHA256 = reader.Read7BitEncodedInt() }; // Read token id
+                var token = new Token { DocId = reader.Read7BitEncodedInt() }; // Read token id
 
                 int count = reader.Read7BitEncodedInt(); // Number of postings
                 int prevPos = 0, prevStart = 0;

@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace IndexerLib.Index
 {
@@ -17,8 +19,8 @@ namespace IndexerLib.Index
                 Directory.CreateDirectory(IndexDirectoryPath);
 
             TokenStorePath = Path.Combine(IndexDirectoryPath, "tokenStore.tks");
-            DocIdStorePath = Path.Combine(IndexDirectoryPath, "idStore.str");
-            WordsStorePath = Path.Combine(IndexDirectoryPath, "wordsStore.str"); 
+            DocIdStorePath = Path.Combine(IndexDirectoryPath, "idStore.sqlite");
+            WordsStorePath = Path.Combine(IndexDirectoryPath, "wordsStore.txt");
         }
 
         public void EnsureUniqueTokenStorePath()
@@ -26,9 +28,19 @@ namespace IndexerLib.Index
             while (File.Exists(TokenStorePath))
             {
                 var fileNameWithoutExt = Path.GetFileNameWithoutExtension(TokenStorePath);
-                var uniqueName = fileNameWithoutExt + "+.str";
+                var uniqueName = fileNameWithoutExt + "+.tks";
                 TokenStorePath = Path.Combine(IndexDirectoryPath, uniqueName);
             }
         }
+
+        public void EnsureTokenStorePath()
+        {
+            if(!File.Exists(TokenStorePath))
+                TokenStorePath = Directory.EnumerateFiles(IndexDirectoryPath, "*.tks", SearchOption.AllDirectories)
+                              .FirstOrDefault();
+
+        }
+
+        public List<string> TokenStoreFileList() => Directory.GetFiles(IndexDirectoryPath, "*.tks").ToList();
     }
 }

@@ -58,7 +58,7 @@
         public int Add(string name)
         {
             // Check if name already exists in the table
-            int existingId = GetIdByName(name);
+            int existingId = GetIdByPath(name);
             if (existingId != -1)
                 return existingId;
 
@@ -79,7 +79,7 @@
         /// </summary>
         /// <param name="name">The name to search for.</param>
         /// <returns>The ID if found, otherwise -1.</returns>
-        public int GetIdByName(string name)
+        public int GetIdByPath(string name)
         {
             string selectQuery = "SELECT Id FROM IdStore WHERE Name = @Name;";
             using (var command = new SQLiteCommand(selectQuery, _connection))
@@ -99,7 +99,7 @@
         /// </summary>
         /// <param name="id">The ID to search for.</param>
         /// <returns>The name if found, otherwise null.</returns>
-        public string GetNameById(int id)
+        public string GetPathById(int id)
         {
             string selectQuery = "SELECT Name FROM IdStore WHERE Id = @Id;";
             using (var command = new SQLiteCommand(selectQuery, _connection))

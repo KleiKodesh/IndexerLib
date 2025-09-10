@@ -4,9 +4,50 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:IndexerTest"
+        xmlns:wv="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        FlowDirection="RightToLeft"
+        FontSize="14"
+        Title="pcinfogmach indexer" Height="450" Width="450">
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Margin="5">
+            <Grid.Resources>
+                <Style TargetType="Button">
+                    <Setter Property="Margin" Value="5"/>
+                    <Setter Property="Padding" Value="10,5"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="BorderBrush" Value="{Binding BorderBrush, ElementName=SearchBox}"/>
+                </Style>
+            </Grid.Resources>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBox x:Name="SearchBox" 
+                     Margin="5" 
+                     Padding="3"
+                     KeyDown="SearchBox_KeyDown"/>
+            <Button x:Name="SearchButton" 
+                    Grid.Column="1" 
+                    Content="חיפוש" 
+                    Click="SearchButton_Click"/>
+            <Button x:Name="CreateIndexButton" 
+                    Grid.Column="2" 
+                    Content="צור אינדקס"
+                    Click="CreateIndexButton_Click"/>
+        </Grid>
+
+        <Separator Grid.Row="1"/>
         
+        <wv:WebView2 x:Name="WebView" 
+                     Grid.Row="2"/>
     </Grid>
 </Window>

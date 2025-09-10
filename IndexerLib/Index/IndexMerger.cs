@@ -1,36 +1,38 @@
-﻿using IndexerLib.Helpres;
+﻿using IndexerLib.Helpers;
 using IndexerLib.Index;
+using IndexerLib.Tokens;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Security;
 using System.Text;
 
-namespace IndexerLib.IndexManger
+namespace IndexerLib.Index
 {
-    public static class IndexMerger 
+    public static class IndexMerger
     {
         public static string Merge()
         {
             var startTime = DateTime.Now;
             Console.WriteLine($"Merge Start: {startTime}");
 
-            var files = Directory.GetFiles(new IndexerBase().IndexDirectoryPath, "*.tks");
+            var files = new IndexerBase().TokenStoreFileList();
 
             string writerPath;
-            using (var writer = new IndexWriter())
+            using (var writer = new IndexWriter("merged"))
             {
                 writerPath = writer.TokenStorePath;
                 var indexReaders = new List<IndexReader>();
+
 
                 foreach (var file in files)
                 {
                     if (file == writer.TokenStorePath)
                         continue;
 
-                    var newReader = new IndexReader();
-                    var enumerator = newReader.GetAllKeys().GetEnumerator();
-                    if (enumerator.MoveNext())
+                    var newReader = new IndexReader(file);
+                    if (newReader.Enumerator.MoveNext())
                         indexReaders.Add(newReader);
                 }
 

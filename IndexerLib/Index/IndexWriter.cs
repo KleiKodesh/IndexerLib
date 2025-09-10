@@ -1,4 +1,4 @@
-﻿using IndexerLib.Helpres;
+﻿using IndexerLib.Helpers;
 using IndexerLib.IndexManger;
 using System;
 using System.Collections.Generic;
@@ -29,8 +29,10 @@ namespace IndexerLib.Index
         // Stores unique words seen during indexing
         HashSet<string> WordsSet = new HashSet<string>();
 
-        public IndexWriter()
+        public IndexWriter(string name = "")
         {
+            if(!string.IsNullOrEmpty(name))
+                TokenStorePath = Path.Combine(IndexDirectoryPath, name + ".tks");
             // Ensure the token store path is unique/valid before creating the stream
             EnsureUniqueTokenStorePath();
 
@@ -47,23 +49,37 @@ namespace IndexerLib.Index
         /// <summary>
         /// Writes token data to file and records its offset/length in the Keys dictionary.
         /// </summary>
-        /// <param name="data">Serialized token data to write</param>
-        /// <param name="word">Associated word to hash and track</param>
+        /// <param name="data">Serialized token data to write.</param>
+        /// <param name="word">Associated word to hash and track.</param>
         public void Put(byte[] data, string word)
         {
-            if (string.IsNullOrWhiteSpace(word) || data == null)
+            if (string.IsNullOrEmpty(word) || data == null)
                 return;
 
-            // Hash the word to get a unique key (fixed-size 32 bytes)
+            // Store the original word for persistence in a separate word set
+            WordsSet.Add(word);
+
+            // Compute SHA-256 hash of the word (32 bytes, fixed size)
             byte[] hash = _sha256.ComputeHash(Encoding.UTF8.GetBytes(word));
 
-            // Track the original word for persistence in a separate word store
-            WordsSet.Add(word);
+            Put(data, hash);
+        }
+
+        /// <summary>
+        /// Writes token data to file using the provided hash as a key,
+        /// and stores its offset/length in the Keys dictionary.
+        /// </summary>
+        /// <param name="data">Serialized token data to write.</param>
+        /// <param name="hash">Precomputed SHA-256 hash to use as the key.</param>
+        public void Put(byte[] data, byte[] hash)
+        {
+            if (hash == null || data == null)
+                return;
 
             // Write serialized token data at the current file offset
             _writer.Write(data, 0, data.Length);
 
-            // create index entry of stored data
+            // Record index entry for this stored data
             Keys[hash] = new IndexKey
             {
                 Hash = hash,
@@ -74,6 +90,7 @@ namespace IndexerLib.Index
             // Advance the file offset tracker
             currentOffset += data.Length;
         }
+
 
         /// <summary>
         /// Disposes resources and finalizes the index file by appending the index and footer.

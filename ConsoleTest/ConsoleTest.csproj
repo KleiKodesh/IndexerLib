@@ -59,6 +59,12 @@
     <None Include="App.config" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\IndexerLib\IndexerLib.csproj">
+      <Project>{e2affb7b-195d-4cd7-90e4-e32564962d61}</Project>
+      <Name>IndexerLib</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Docnet.Core.2.6.0\build\net45\Docnet.Core.targets" Condition="Exists('..\packages\Docnet.Core.2.6.0\build\net45\Docnet.Core.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
