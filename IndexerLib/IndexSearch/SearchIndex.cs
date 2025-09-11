@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Windows.Forms;
 
 namespace IndexerLib.IndexSearch
 {
@@ -28,11 +29,13 @@ namespace IndexerLib.IndexSearch
             Console.WriteLine("Grouping by doc..." + DateTime.Now);
             var validDocs = GroupAndFilterByDocId(tokenLists);
 
-            Console.WriteLine("Generating results..." + DateTime.Now);
-            var results = UnorderedAdjacencyMatch(validDocs, adjacency);
+            //foreach (var doc in validDocs)
+            //    Console.WriteLine(doc.Key);
+            //Console.WriteLine("Generating results..." + DateTime.Now);
+            //var results = UnorderedAdjacencyMatch(validDocs, adjacency);
 
             Console.WriteLine("Search complete. Elapsed: " + (DateTime.Now - startTime));
-            return results.OrderBy(r => r.DocId).ToList();
+            return null; /*results.OrderBy(r => r.DocId).ToList();*/
         }
 
         static List<List<string>> GenerateWordLists(string query)
@@ -46,10 +49,55 @@ namespace IndexerLib.IndexSearch
 
             foreach (var word in wordsStore)
                 for (int x = 0; x < splitQuery.Count; x++)
-                    if (Regex.IsMatch(word, splitQuery[x]))
+                    if (IsWildcardMatch(splitQuery[x], word))
                         result[x].Add(word);
 
             return result;
+        }
+
+        static bool IsWildcardMatch(string pattern, string input)
+        {
+            int p = 0, s = 0;
+            int starIdx = -1, match = 0, starCount = 0;
+
+            while (s < input.Length)
+            {
+                if (p < pattern.Length && pattern[p] == input[s])
+                {
+                    // exact char match
+                    p++;
+                    s++;
+                }
+                else if (p < pattern.Length && pattern[p] == '*')
+                {
+                    // * found, can match up to 5 chars
+                    starIdx = p++;
+                    match = s;
+                    starCount = 0;
+                }
+                else if (p < pattern.Length && pattern[p] == '?')
+                {
+                    // optional char
+                    p++;
+                }
+                else if (starIdx != -1 && starCount < 5)
+                {
+                    // let * consume another char (but max 5)
+                    p = starIdx + 1;
+                    s = ++match;
+                    starCount++;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            // consume remaining * and ? in pattern
+            while (p < pattern.Length && (pattern[p] == '*' || pattern[p] == '?'))
+                p++;
+
+            return p == pattern.Length;
         }
 
         static List<List<Token>> GetTokenLists(List<List<string>> wordLists)
@@ -64,22 +112,27 @@ namespace IndexerLib.IndexSearch
                 {
                     foreach (string word in wordLists[x])
                     {
+                        //Console.WriteLine(DateTime.Now);
                         var data = reader.GetTokenData(word);
+                        //Console.WriteLine(DateTime.Now);
                         if (data != null)
                         {
                             var tokenGroup = Serializer.DeserializeTokenGroup(data);
                             tokenLists[x].AddRange(tokenGroup);
                         }
+                        //Console.WriteLine(DateTime.Now);
                     }
                 }
             }
             return tokenLists;
         }
 
+
         static Dictionary<int, List<Token>> GroupAndFilterByDocId(List<List<Token>> tokenLists)
         {
             var result = new Dictionary<int, List<Token>>();
             short counter = 0;
+
             foreach (var tokenList in tokenLists)
             {
                 var docGroups = tokenList.GroupBy(t => t.DocId);

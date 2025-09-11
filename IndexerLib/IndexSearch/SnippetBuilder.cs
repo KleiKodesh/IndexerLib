@@ -14,6 +14,9 @@ namespace IndexerLib.IndexSearch
         // Generate snippets for all matches in search results
         public static List<Snippet> BuildSnippets(List<SearchResult> searchResults, int windowSize = 100)
         {
+            if (searchResults == null)
+                return new List<Snippet>();
+
             var startTime = DateTime.Now;
             Console.WriteLine("Building Snippets...");
             var snippets = new List<Snippet>();
