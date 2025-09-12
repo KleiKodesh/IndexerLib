@@ -9,6 +9,9 @@ namespace IndexerLib.Helpers
     {
         public static string GetText(string filePath)
         {
+            if (string.IsNullOrEmpty(filePath))
+                return string.Empty;
+
             string extension = Path.GetExtension(filePath).ToLower();
 
             if (extension.EndsWith("txt"))

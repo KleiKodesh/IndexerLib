@@ -1,8 +1,11 @@
-﻿using IndexerLib.Index;
+﻿using IndexerLib.Helpers;
+using IndexerLib.Index;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace IndexerLib.IndexManger
 {
@@ -10,7 +13,7 @@ namespace IndexerLib.IndexManger
     /// Manages a persistent list of words stored in a text file ("Keys.txt") inside the Index folder.
     /// Provides functionality to read and add words in a sorted manner.
     /// </summary>
-    public static class WordsStore
+    public class WordsStore
     {
         public static readonly string _filePath = new IndexerBase().WordsStorePath;
         /// <summary>
@@ -33,12 +36,74 @@ namespace IndexerLib.IndexManger
         /// <param name="newWords">HashSet of new words to add</param>
         public static void AddWords(HashSet<string> newWords)
         {
-            // Merge existing words into the set to avoid duplicates
+            // Merge existing words into the set
             foreach (string word in GetWords())
                 newWords.Add(word);
 
-            // Write the merged set back to the file in sorted order
-            File.WriteAllLines(_filePath, newWords.OrderBy(w => w));
+            File.WriteAllLines(_filePath, newWords);
         }
-    }
+
+
+        public static void SortWordsByIndex()
+        {
+            var words = GetWords().ToList();
+            using (var reader = new IndexReader())
+            {
+                var keys = reader.GetAllKeys().ToList();
+                var byteComparer = new ByteArrayEqualityComparer();
+
+                using (var sha = SHA256.Create())
+                {
+                    // Create a dictionary mapping hash -> word
+                    var wordMap = new Dictionary<byte[], string>(new ByteArrayEqualityComparer());
+                    foreach (var word in words)
+                    {
+                        string normalizedWord = word.Normalize(NormalizationForm.FormC);
+                        byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(normalizedWord));
+                        wordMap[hash] = word;
+                    }
+
+                    // Prepare sorted list based on index order
+                    var sortedWords = new List<string>();
+                    foreach (var key in keys)
+                    {
+                        if (wordMap.TryGetValue(key.Hash, out var word))
+                        {
+                            sortedWords.Add(word);
+                        }
+                    }
+
+                    // Write back to file
+                    using (var writer = new StreamWriter(_filePath, false, Encoding.UTF8))
+                    {
+                        foreach (var word in sortedWords)
+                            writer.WriteLine(word);
+                    }
+                }
+
+                Console.WriteLine("WordsStore sorted based on index order!");
+            }
+        }
+
+
+
+        public ByteArrayEqualityComparer ByteComparer { get; } = new ByteArrayEqualityComparer();
+
+        public void test()
+        {
+            var reader = new IndexReader("myfile.tks");
+            var keys = reader.GetAllKeys().ToList();
+            var words = WordsStore.GetWords().ToList();
+
+            Console.WriteLine($"Index count: {keys.Count}, Word count: {words.Count}");
+
+            for (int i = 0; i < Math.Min(keys.Count, words.Count); i++)
+            {
+                var expectedHash = reader.Sha256.ComputeHash(Encoding.UTF8.GetBytes(words[i]));
+                if (!ByteComparer.Equals(keys[i].Hash, expectedHash))
+                    Console.WriteLine($"Mismatch at {i}: word={words[i]}");
+            }
+
+        }
+}
 }

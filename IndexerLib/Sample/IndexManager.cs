@@ -30,7 +30,7 @@ namespace IndexerLib.Sample
                 Console.WriteLine($"File Progress: {currentIndex} / {fileCount}");
             progressTimer.Start();
 
-            using (var wal = new WAL())
+            var wal = new WAL();
                 foreach (var file in files)
                 {
                     currentIndex++;
@@ -40,7 +40,7 @@ namespace IndexerLib.Sample
 
                         if (!string.IsNullOrWhiteSpace(content))
                         {
-                            var tokens = Tokenizer.Tokenize(content, file);
+                            var tokens = RegexTokenizer.Tokenize(content, file);
                             foreach (var token in tokens)
                                 wal.Log(token.Key, token.Value);
                         }
@@ -54,15 +54,16 @@ namespace IndexerLib.Sample
 
             progressTimer.Stop();
             progressTimer.Dispose();
+            wal.Dispose();
 
             Console.WriteLine($"Indexing complete! start time: {indexStart} end time: {DateTime.Now} total time: {DateTime.Now - indexStart}");
         }
 
-        public static List<Snippet> Search(string query)
+        public static List<SearchResult> Search(string query)
         {
             var results = SearchIndex.Execute(query);
-            var snippets = SnippetBuilder.BuildSnippets(results);
-            return snippets;
+            SnippetBuilder.BuildSnippets(ref results);
+            return results;
         }
     }
 }

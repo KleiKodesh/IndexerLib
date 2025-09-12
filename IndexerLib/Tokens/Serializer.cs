@@ -76,7 +76,7 @@ namespace IndexerLib.Tokens
                     prevStart += reader.Read7BitEncodedInt(); // Add delta to previous StartIndex
                     int len = reader.Read7BitEncodedInt();    // Read Length
 
-                    token.Postings.Add(new Posting
+                    token.Postings.Add(new Postings
                     {
                         Position = prevPos,
                         StartIndex = prevStart,

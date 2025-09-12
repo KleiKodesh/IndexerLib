@@ -18,10 +18,10 @@ namespace IndexerLib.Tokens
         /// Collection of postings that store information about 
         /// occurrences of this token within this doc (e.g. positions etc.)
         /// </summary>
-        public List<Posting> Postings { get; set; } = new List<Posting>();
+        public List<Postings> Postings { get; set; } = new List<Postings>();
     }
 
-    public class Posting
+    public class Postings
     {
         public int Position { get; set; } // position of the word relative to word count
         public int StartIndex { get; set; } // postion of first char of the word relative to char count

@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using static IndexerLib.Helpers.ByteArrayComparer;
 
 namespace IndexerLib.Index
 {
@@ -24,7 +25,7 @@ namespace IndexerLib.Index
         private long currentOffset = 0;         // Tracks current byte offset in file where next entry will be written
 
         // Maps word hashes -> index metadata (offset + length)
-        Dictionary<byte[], IndexKey> Keys = new Dictionary<byte[], IndexKey>();
+        Dictionary<byte[], IndexKey> Keys = new Dictionary<byte[], IndexKey>(new ByteArrayEqualityComparer());
 
         // Stores unique words seen during indexing
         HashSet<string> WordsSet = new HashSet<string>();
@@ -60,7 +61,8 @@ namespace IndexerLib.Index
             WordsSet.Add(word);
 
             // Compute SHA-256 hash of the word (32 bytes, fixed size)
-            byte[] hash = _sha256.ComputeHash(Encoding.UTF8.GetBytes(word));
+            string normalizedWord = word.Normalize(NormalizationForm.FormC);
+            byte[] hash = _sha256.ComputeHash(Encoding.UTF8.GetBytes(normalizedWord));
 
             Put(data, hash);
         }

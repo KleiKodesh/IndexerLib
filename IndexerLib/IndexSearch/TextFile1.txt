@@ -1,0 +1,74 @@
+﻿   // calculate relative positions of postings 
+        // So the rule is: 
+        // All query terms must appear in the document. this is done at earlier stage already 
+        // Terms can appear in any order. 
+        // A match is valid only if every consecutive pair in the match is within adjacency distance. 
+        // make sure to collect all valud matches for each doc
+        // use silding tables method
+        // no need for scoring
+        // Token has int DocId and List<Posting> Postings where Posting exposes int Position.
+        //SearchResult has these writable properties: int DocId,   public List<Postings[]> MatchedPostings { get; set; } = new List<Postings[]>();
+        public static List<SearchResult> UnorderedAdjacencyMatch(
+     Dictionary<int, List<Token>> validDocs,
+     short adjacency)
+        {
+            var results = new List<SearchResult>();
+
+            foreach (var docEntry in validDocs)
+            {
+                var postingsLists = docEntry.Value
+                    .Select(t => t.Postings)
+                    .Where(p => p.Count > 0)
+                    .ToList();
+
+                if (postingsLists.Count != docEntry.Value.Count)
+                    continue;
+
+                var indices = new int[postingsLists.Count];
+                var matches = new List<Postings[]>();
+
+                while (true)
+                {
+                    var current = new List<(int pos, int idx)>();
+                    for (int i = 0; i < postingsLists.Count; i++)
+                    {
+                        if (indices[i] >= postingsLists[i].Count)
+                            goto End;
+                        current.Add((postingsLists[i][indices[i]].Position, i));
+                    }
+
+                    current.Sort((a, b) => a.pos.CompareTo(b.pos));
+
+                    bool valid = true;
+                    for (int i = 1; i < current.Count; i++)
+                    {
+                        if (current[i].pos - current[i - 1].pos > adjacency)
+                        {
+                            valid = false;
+                            break;
+                        }
+                    }
+
+                    if (valid)
+                    {
+                        matches.Add(current
+                            .Select(c => postingsLists[c.idx][indices[c.idx]])
+                            .ToArray());
+
+                        // advance *one* pointer to avoid skipping overlaps
+                        indices[current[0].idx]++;
+                    }
+                    else
+                    {
+                        // move the earliest term forward
+                        indices[current[0].idx]++;
+                    }
+                }
+
+            End:
+                if (matches.Count > 0)
+                    results.Add(new SearchResult { DocId = docEntry.Key, MatchedPostings = matches });
+            }
+
+            return results;
+        }

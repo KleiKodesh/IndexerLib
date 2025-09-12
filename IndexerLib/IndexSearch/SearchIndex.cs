@@ -1,12 +1,9 @@
 ﻿using IndexerLib.Index;
 using IndexerLib.IndexManger;
-using IndexerLib.IndexSearch;
 using IndexerLib.Tokens;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
-using System.Windows.Forms;
 
 namespace IndexerLib.IndexSearch
 {
@@ -16,7 +13,8 @@ namespace IndexerLib.IndexSearch
         {
             var startTime = DateTime.Now;
             Console.WriteLine("Parsing query..." + DateTime.Now);
-            var wordLists = GenerateWordLists(query);
+            //var wordLists = GenerateWordLists(query);
+            var wordLists = GenerateWordPositions(query);
 
             if (wordLists.Count > 3)
                 adjacency = (short)(adjacency * (wordLists.Count - 2) + wordLists.Count);
@@ -24,18 +22,17 @@ namespace IndexerLib.IndexSearch
                 adjacency = (short)(adjacency + wordLists.Count);
 
             Console.WriteLine("Querying index..." + DateTime.Now);
-            var tokenLists = GetTokenLists(wordLists);
+            //var tokenLists = GetTokenLists(wordLists);
+            var tokenLists = GetTokenListsByPos(wordLists);
 
             Console.WriteLine("Grouping by doc..." + DateTime.Now);
             var validDocs = GroupAndFilterByDocId(tokenLists);
 
-            //foreach (var doc in validDocs)
-            //    Console.WriteLine(doc.Key);
-            //Console.WriteLine("Generating results..." + DateTime.Now);
-            //var results = UnorderedAdjacencyMatch(validDocs, adjacency);
+            Console.WriteLine("Generating results..." + DateTime.Now);
+            var results = OrderedAdjacencyMatch(validDocs, adjacency);
 
             Console.WriteLine("Search complete. Elapsed: " + (DateTime.Now - startTime));
-            return null; /*results.OrderBy(r => r.DocId).ToList();*/
+            return results.OrderBy(r => r.DocId).ToList();
         }
 
         static List<List<string>> GenerateWordLists(string query)
@@ -54,6 +51,32 @@ namespace IndexerLib.IndexSearch
 
             return result;
         }
+
+        static List<List<int>> GenerateWordPositions(string query)
+        {
+            var splitQuery = query.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var wordsStore = WordsStore.GetWords();
+
+            // Prepare result structure
+            var result = new List<List<int>>(splitQuery.Length);
+            for (int i = 0; i < splitQuery.Length; i++)
+                result.Add(new List<int>());
+
+            // Iterate with index tracking
+            int position = 0;
+            foreach (var word in wordsStore)
+            {
+                for (int x = 0; x < splitQuery.Length; x++)
+                {
+                    if (IsWildcardMatch(splitQuery[x], word))
+                        result[x].Add((position));
+                }
+                position++;
+            }
+
+            return result;
+        }
+
 
         static bool IsWildcardMatch(string pattern, string input)
         {
@@ -127,7 +150,34 @@ namespace IndexerLib.IndexSearch
             return tokenLists;
         }
 
+        static List<List<Token>> GetTokenListsByPos(List<List<int>> posLists)
+        {
+            var tokenLists = new List<List<Token>>(posLists.Count);
+            for (int i = 0; i < posLists.Count; i++)
+                tokenLists.Add(new List<Token>());
 
+            using (var reader = new IndexReader())
+            {
+                for (int x = 0; x < posLists.Count; x++)
+                {
+                    foreach (var pos in posLists[x])
+                    {
+                        //Console.WriteLine(DateTime.Now);
+                        var data = reader.GetTokenDataByPos(pos);
+                        //Console.WriteLine(DateTime.Now);
+                        if (data != null)
+                        {
+                            var tokenGroup = Serializer.DeserializeTokenGroup(data);
+                            tokenLists[x].AddRange(tokenGroup);
+                        }
+                        //Console.WriteLine(DateTime.Now);
+                    }
+                }
+            }
+            return tokenLists;
+        }
+
+        //supposed to filter docs that dont have a count of token lists simililar to original token lists
         static Dictionary<int, List<Token>> GroupAndFilterByDocId(List<List<Token>> tokenLists)
         {
             var result = new Dictionary<int, List<Token>>();
@@ -138,91 +188,110 @@ namespace IndexerLib.IndexSearch
                 var docGroups = tokenList.GroupBy(t => t.DocId);
                 foreach (var docGroup in docGroups)
                 {
+                    var postings = docGroup
+                        .SelectMany(t => t.Postings)
+                        .OrderBy(p => p.Position)
+                        .ToList();
+
+                    if (postings.Count == 0)
+                        continue; // 🚀 skip if no real postings for this query term in this doc
+
                     if (counter == 0)
-                        result[docGroup.Key] = new List<Token>();
-                    else if (!result.ContainsKey(docGroup.Key))
-                        continue;
-
-                    var postings = docGroup.SelectMany(t => t.Postings).OrderBy(p => p.Position);
-
-                    result[docGroup.Key].Add(new Token
                     {
-                        DocId = docGroup.Key,
-                        Postings = postings.ToList()
-                    });
+                        // first term initializes the doc
+                        result[docGroup.Key] = new List<Token>
+                {
+                    new Token { DocId = docGroup.Key, Postings = postings }
+                };
+                    }
+                    else if (result.ContainsKey(docGroup.Key))
+                    {
+                        // only add if doc already has matches for previous terms
+                        result[docGroup.Key].Add(new Token
+                        {
+                            DocId = docGroup.Key,
+                            Postings = postings
+                        });
+                    }
                 }
                 counter++;
             }
 
+            // final cleanup: ensure doc has postings for *all* query terms
+            var requiredCount = tokenLists.Count;
+            result = result
+                .Where(kvp => kvp.Value.Count == requiredCount)
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
             return result;
         }
 
-        // calculate relative positions of postings 
-        // So the rule is: 
-        //All query terms must appear in the document. this is done at earlier stage already 
-        // Terms can appear in any order. 
-        // A match is valid only if every consecutive pair in the match is within adjacency distance. 
-        // make sure to collect all valud matches for each doc adjust search result class if neccsary
-        static List<SearchResult> UnorderedAdjacencyMatch(Dictionary<int, List<Token>> validDocs, short adjacency)
+
+        public static List<SearchResult> OrderedAdjacencyMatch(
+     Dictionary<int, List<Token>> validDocs,
+     short adjacency)
         {
             var results = new List<SearchResult>();
 
-            foreach (var doc in validDocs)
+            foreach (var docEntry in validDocs)
             {
-                // Flatten postings: (term index, position)
-                var all = new List<(int term, int pos)>();
-                for (int t = 0; t < doc.Value.Count; t++)
-                    all.AddRange(doc.Value[t].Postings.Select(p => (t, p.Position)));
+                var postingsLists = docEntry.Value
+                    .Select(t => t.Postings)
+                    .Where(p => p.Count > 0)
+                    .ToList();
 
-                if (all.Count == 0) continue;
+                if (postingsLists.Count != docEntry.Value.Count)
+                    continue;
 
-                all = all.OrderBy(p => p.pos).ToList();
-                int termCount = doc.Value.Count;
+                var matches = new List<Postings[]>();
 
-                var freq = new int[termCount];   // track term presence in window
-                int have = 0;                    // how many unique terms in window
-                int left = 0;
-
-                var docMatches = new List<List<int>>();
-
-                for (int right = 0; right < all.Count; right++)
+                int i0 = 0;
+                while (i0 < postingsLists[0].Count)
                 {
-                    // expand window
-                    if (freq[all[right].term]++ == 0) have++;
+                    var currentMatch = new Postings[postingsLists.Count];
+                    currentMatch[0] = postingsLists[0][i0];
+                    int prevPos = currentMatch[0].Position;
 
-                    // shrink window while all terms covered
-                    while (have == termCount)
+                    bool valid = true;
+                    for (int listIdx = 1; listIdx < postingsLists.Count; listIdx++)
                     {
-                        int minPos = all[left].pos;
-                        int maxPos = all[right].pos;
+                        var plist = postingsLists[listIdx];
+                        int j = 0;
 
-                        if (maxPos - minPos <= adjacency * (termCount - 1))
+                        // find the first posting within adjacency after prevPos
+                        while (j < plist.Count && plist[j].Position - prevPos <= 0)
+                            j++;
+
+                        if (j >= plist.Count || plist[j].Position - prevPos > adjacency)
                         {
-                            // collect every valid window (overlapping included)
-                            var match = all
-                                .Skip(left)
-                                .Take(right - left + 1)
-                                .Select(p => p.pos)
-                                .ToList();
-
-                            docMatches.Add(match);
+                            valid = false;
+                            break;
                         }
 
-                        // shrink from left
-                        if (--freq[all[left].term] == 0) have--;
-                        left++;
+                        currentMatch[listIdx] = plist[j];
+                        prevPos = plist[j].Position;
+                    }
+
+                    if (valid)
+                        matches.Add(currentMatch);
+
+                    i0++;
+                }
+
+                if (matches.Count > 0)
+                {
+                    foreach (var match in matches)
+                    {
+                        results.Add(new SearchResult
+                        {
+                            DocId = docEntry.Key,
+                            MatchedPostings = match
+                        });
                     }
                 }
 
-                if (docMatches.Count > 0)
-                {
-                    results.Add(new SearchResult
-                    {
-                        DocId = doc.Key,
-                        Matches = docMatches
-                    });
-                }
             }
+
             return results;
         }
     }

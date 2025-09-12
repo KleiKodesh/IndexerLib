@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
+using IndexerLib.IndexManger;
 
 namespace IndexerLib.Index
 {
@@ -20,7 +21,7 @@ namespace IndexerLib.Index
         // In-memory log buffer (key = token string, value = serialized token bytes)
         private readonly ConcurrentQueue<KeyValuePair<string, byte[]>> _logQueue = new ConcurrentQueue<KeyValuePair<string, byte[]>>();
         int _threshHold;         // Threshold for when to flush (based on memory availability)
-        short mergeCountdown = 25;
+        short mergeCountdown = 30;
 
         /// <summary>
         /// Initializes WAL with dynamic flush threshold based on available memory.
@@ -121,7 +122,7 @@ namespace IndexerLib.Index
             if (mergeCountdown == 0)
             {
                 IndexMerger.Merge();
-                mergeCountdown = 25;
+                mergeCountdown = 30;
             }
 
         }
@@ -133,6 +134,7 @@ namespace IndexerLib.Index
         {
             Flush();
             IndexMerger.Merge();
+            WordsStore.SortWordsByIndex();
         }
     }
 }

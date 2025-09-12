@@ -25,4 +25,31 @@ namespace IndexerLib.Helpers
             return x.Length.CompareTo(y.Length);
         }
     }
+
+    public class ByteArrayEqualityComparer : IEqualityComparer<byte[]>
+    {
+        public bool Equals(byte[] x, byte[] y)
+        {
+            if (x == y) return true;
+            if (x == null || y == null || x.Length != y.Length) return false;
+
+            for (int i = 0; i < x.Length; i++)
+                if (x[i] != y[i]) return false;
+
+            return true;
+        }
+
+        public int GetHashCode(byte[] obj)
+        {
+            if (obj == null) return 0;
+
+            unchecked
+            {
+                int hash = 17;
+                foreach (var b in obj)
+                    hash = hash * 31 + b;
+                return hash;
+            }
+        }
+    }
 }

@@ -17,8 +17,8 @@ namespace IndexerLib.Index
     {
         const ushort MagicMarker = 0xCAFE;  // Marker value used in footer to verify file integrity
 
-        readonly SHA256 _sha256;                   // Hashing algorithm used for generating key identifiers (SHA-256)
-        readonly ByteArrayComparer _byteComparer;  // Custom comparer for comparing byte[] hashes in binary search
+        public readonly SHA256 Sha256;                   // Hashing algorithm used for generating key identifiers (SHA-256)
+        public readonly ByteArrayComparer ByteComparer;  // Custom comparer for comparing byte[] hashes in binary search
         readonly FileStream _fileStream;           // File stream pointing to the index file
         readonly MyBinaryReader _reader;           // Custom binary reader that supports 7-bit encoding
 
@@ -51,8 +51,8 @@ namespace IndexerLib.Index
 
             _fileStream = new FileStream(TokenStorePath, FileMode.Open, FileAccess.Read);
             _reader = new MyBinaryReader(_fileStream, Encoding.UTF8, leaveOpen: true);
-            _sha256 = SHA256.Create();
-            _byteComparer = new ByteArrayComparer();
+            Sha256 = SHA256.Create();
+            ByteComparer = new ByteArrayComparer();
 
             LoadIndexMetadata();
         }
@@ -107,18 +107,41 @@ namespace IndexerLib.Index
         }
 
         /// <summary>
+        /// Retrieves a stored block given its string key with precomputed code.
+        /// </summary>
+        public byte[] GetTokenDataByPos(int pos)
+        {
+            if (pos < 0)
+                return null;
+
+            // Compute entry position directly
+            long entryPos = _indexStart + 4 + (pos * 44); // pos = entry number
+            _reader.BaseStream.Seek(entryPos, SeekOrigin.Begin);
+
+            // Read entry from index
+            byte[] entryHash = _reader.ReadBytes(32);
+            long offset = _reader.ReadInt64();
+            int length = _reader.ReadInt32();
+
+            // Seek to the data location and read the actual token data
+            _reader.BaseStream.Seek(offset, SeekOrigin.Begin);
+            return _reader.ReadBytes(length);
+        }
+
+
+        /// <summary>
         /// Retrieves a stored block given its string key.
         /// </summary>
         public byte[] GetTokenData(string key)
         {
-            var hash = _sha256.ComputeHash(Encoding.UTF8.GetBytes(key));
-            return GetTokenData(hash);
+            var hash = Sha256.ComputeHash(Encoding.UTF8.GetBytes(key));
+            return GetTokenDataByHash(hash);
         }
 
         /// <summary>
         /// Retrieves a stored block given its hash.
         /// </summary>
-        public byte[] GetTokenData(byte[] hash)
+        public byte[] GetTokenDataByHash(byte[] hash)
         {
             if (hash == null)
                 return null;
@@ -154,7 +177,7 @@ namespace IndexerLib.Index
                 // Read hash for comparison
                 byte[] hash = _reader.ReadBytes(32);
 
-                int cmp = _byteComparer.Compare(hash, targetHash);
+                int cmp = ByteComparer.Compare(hash, targetHash);
 
                 if (cmp == 0) // Match found
                 {
@@ -204,7 +227,7 @@ namespace IndexerLib.Index
         {
             _reader?.Dispose();
             _fileStream.Dispose();
-            _sha256?.Dispose();
+            Sha256?.Dispose();
         }
     }
 }

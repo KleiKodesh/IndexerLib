@@ -3,50 +3,71 @@ using IndexerLib.Index;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace IndexerLib.IndexSearch
 {
-
     public static class SnippetBuilder
     {
-        // Generate snippets for all matches in search results
-        public static List<Snippet> BuildSnippets(List<SearchResult> searchResults, int windowSize = 100)
+        /// <summary>
+        /// Builds a single highlighted snippet per SearchResult.
+        /// Assumes result.MatchedPostings contains all postings that belong to one snippet.
+        /// </summary>
+        public static void BuildSnippets(ref List<SearchResult> searchResults, int windowSize = 100)
         {
-            if (searchResults == null)
-                return new List<Snippet>();
+            if (searchResults == null) return;
 
-            var startTime = DateTime.Now;
             Console.WriteLine("Building Snippets...");
-            var snippets = new List<Snippet>();
-
             using (var docIdStore = new DocIdStore())
-            foreach (var result in searchResults)
             {
-                string docPath = docIdStore.GetPathById(result.DocId);
-                string docText = TextExtractor.GetText(docPath);
-                if (string.IsNullOrEmpty(docText)) continue;
-
-                foreach (var match in result.Matches)
+                foreach (var result in searchResults)
                 {
-                    int startPos = Math.Max(match.Min() - windowSize, 0);
-                    int endPos = Math.Min(match.Max() + windowSize, docText.Length);
-
-                    string snippetText = docText.Substring(startPos, endPos - startPos);
-
-                    snippets.Add(new Snippet
+                    string docPath = docIdStore.GetPathById(result.DocId);
+                    string docText = TextExtractor.GetText(docPath);
+                    if (string.IsNullOrEmpty(docText) || result.MatchedPostings == null || result.MatchedPostings.Length == 0)
                     {
-                        DocId = result.DocId,
-                        DocPath = docPath,
-                        MatchPositions = match,
-                        Text = snippetText
-                    });
+                        result.Snippet = null;
+                        continue;
+                    }
+
+                    // overall match span across all postings (one snippet)
+                    int matchStart = result.MatchedPostings.Min(p => p.StartIndex);
+                    int matchEnd = result.MatchedPostings.Max(p => p.StartIndex + p.Length);
+
+                    int snippetStart = Math.Max(0, matchStart - windowSize);
+                    int snippetEnd = Math.Min(docText.Length, matchEnd + windowSize);
+                    string snippet = docText.Substring(snippetStart, snippetEnd - snippetStart);
+
+                    // prepare highlight ranges relative to snippet start
+                    var highlights = result.MatchedPostings
+                        .OrderBy(p => p.StartIndex)
+                        .Select(p => new
+                        {
+                            RelativeStart = p.StartIndex - snippetStart,
+                            Length = p.Length
+                        })
+                        // allow partial overlap with snippet (clip later)
+                        .Where(h => h.RelativeStart < snippet.Length && h.RelativeStart + h.Length > 0)
+                        .ToList();
+
+                    // insert marks from last to first so indices remain valid
+                    for (int i = highlights.Count - 1; i >= 0; i--)
+                    {
+                        var h = highlights[i];
+                        int relStart = Math.Max(0, h.RelativeStart);
+                        int len = Math.Min(h.Length, Math.Max(0, snippet.Length - relStart));
+                        if (len <= 0) continue;
+
+                        snippet = snippet.Insert(relStart + len, "</mark>")
+                                         .Insert(relStart, "<mark>");
+                    }
+
+                    snippet = Regex.Replace(snippet, @"<(?!/?mark\b)[^>]*>|(^[^<]*>)|(<[^>]*$)", "").Trim();          
+
+                    result.Snippet = snippet;
                 }
             }
-
-            Console.WriteLine("Snippets complete. Elapsed: " + (DateTime.Now - startTime));
-            return snippets;
+            Console.WriteLine("Snippets complete.");
         }
     }
 }

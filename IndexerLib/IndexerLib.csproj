@@ -106,12 +106,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Helpers\ByteArrayComparer.cs" />
+    <Compile Include="Helpers\StringExtensions.cs" />
     <Compile Include="Helpers\MyBinaryWriter.cs" />
     <Compile Include="Helpers\MyBinaryReader.cs" />
     <Compile Include="Helpers\TextExtractor.cs" />
     <Compile Include="IndexSearch\SearchResult.cs" />
     <Compile Include="IndexSearch\SearchIndex.cs" />
-    <Compile Include="IndexSearch\Snippet.cs" />
     <Compile Include="IndexSearch\SnippetBuilder.cs" />
     <Compile Include="Index\IndexMerger.cs" />
     <Compile Include="Index\IndexReader.cs" />
@@ -123,15 +123,17 @@
     <Compile Include="Index\IndexWriter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Sample\IndexManager.cs" />
+    <Compile Include="Tokens\RegexTokenizer.cs" />
     <Compile Include="Tokens\Serializer.cs" />
     <Compile Include="Tokens\Token.cs" />
-    <Compile Include="Tokens\Tokenizer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Content Include="IndexSearch\TextFile1.txt" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

@@ -6,7 +6,8 @@ namespace IndexerLib.IndexSearch
     public class SearchResult
     {
         public int DocId { get; set; }                  // Document ID
-        public List<List<int>> Matches { get; set; }   // Each inner list = one valid match (positions of all query terms)
+        public string DocPath { get; set; }                  // Document Path
+        public string Snippet { get; set; } //  highlighted snippet
+        public Postings[] MatchedPostings { get; set; }
     }
-
 }

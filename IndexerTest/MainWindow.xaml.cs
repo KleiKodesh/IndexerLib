@@ -1,6 +1,9 @@
-﻿using IndexerLib.IndexSearch;
+﻿using IndexerLib.Helpers;
+using IndexerLib.Index;
+using IndexerLib.IndexManger;
 using IndexerLib.Sample;
 using Microsoft.WindowsAPICodePack.Dialogs;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -49,33 +52,64 @@ namespace IndexerTest
             // Run the query on your index
             var results = IndexManager.Search(SearchBox.Text);
 
-            // Build HTML with StringBuilder
             var sb = new StringBuilder();
-            sb.Append("<html><body style='font-family:Segoe UI;'>");
+            string htmlStyle = "font-family:Segoe UI; direction:rtl;";
 
-            foreach (var snippet in results)
+            sb.AppendLine($"<html><body style='{htmlStyle}'>");
+
+            foreach (var result in results)
             {
-                sb.Append("<div style='margin-bottom:12px;'>");
-                sb.AppendFormat("<b>Document {0}</b><br/>", snippet.DocId);
+                string safePath = WebUtility.HtmlEncode(result.DocId.ToString());
 
-                // show the doc path
-                sb.AppendFormat("<small style='color:gray;'>Path: {0}</small><br/>",
-                    WebUtility.HtmlEncode(snippet.DocPath));
+                sb.AppendLine("<div style='margin-bottom:12px;'>");
+                sb.AppendLine($"<b>Document {result.DocId}</b><br/>");
+                sb.AppendLine($"<small style='color:gray;'>Path: {safePath}</small><br/>");
 
-                sb.AppendFormat("<span>{0}</span><br/>", WebUtility.HtmlEncode(snippet.Text));
+                // Snippet is assumed to already contain <mark> tags (safe HTML)
+                sb.AppendLine(result.Snippet + "<br/>");
 
-                if (snippet.MatchPositions?.Any() == true)
-                {
-                    sb.AppendFormat("<small>Match positions: {0}</small>",
-                        string.Join(", ", snippet.MatchPositions));
-                }
+                sb.AppendLine("</div>");
 
-                sb.Append("</div>");
             }
 
-            sb.Append("</body></html>");
+            sb.AppendLine("</body></html>");
             WebView.NavigateToString(sb.ToString());
         }
 
+      
+        private void DebugButton_Click(object sender, RoutedEventArgs e)
+        {
+            WordsStore.SortWordsByIndex();
+        }
+
+        void TokenizerTest()
+        {
+            var dialog = new CommonOpenFileDialog
+            {
+                IsFolderPicker = false, // pick a single file
+                Filters = { new CommonFileDialogFilter("Text files", "*.txt") }
+            };
+
+            if (dialog.ShowDialog() != CommonFileDialogResult.Ok) return;
+
+            string filePath = dialog.FileName;
+            string text = System.IO.File.ReadAllText(filePath);
+
+            // Tokenize
+            var tokensDict = IndexerLib.Tokens.RegexTokenizer.Tokenize(text, filePath);
+            var tokens = new List<string>(tokensDict.Keys);
+
+            // Build HTML list
+            var sb = new StringBuilder();
+            sb.AppendLine("<html><body style='font-family:Segoe UI; direction:rtl;'>");
+            sb.AppendLine("<h3>Tokens:</h3>");
+            sb.AppendLine("<ul>");
+            foreach (var token in tokens)
+                sb.AppendLine($"<li>{WebUtility.HtmlEncode(token)}</li>");
+            sb.AppendLine("</ul>");
+            sb.AppendLine("</body></html>");
+
+            WebView.NavigateToString(sb.ToString());
+        }
     }
 }
