@@ -17,13 +17,13 @@ namespace IndexerLib.Tokens
             int docId = 0;
 
             using (var idStore = new DocIdStore())
-                docId = idStore.Add(path);           
+                docId = idStore.Add(path);
 
             foreach (Match match in WordRegex.Matches(text))
             {
                 string word = CleanWordRegex.Replace(match.Value.ToLowerInvariant(), "");
 
-                if (word.Length <= 1) // skip one-char tokens
+                if (word.Length <= 1 || word.Length >= 45) // skip non word tokens
                     continue;
 
                 if (!tokens.TryGetValue(word, out var token))

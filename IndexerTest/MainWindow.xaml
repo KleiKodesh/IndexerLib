@@ -44,10 +44,10 @@
                     Grid.Column="2" 
                     Content="צור אינדקס"
                     Click="CreateIndexButton_Click"/>
-            <Button x:Name="DebugButton" 
+            <!--<Button x:Name="DebugButton" 
                     Grid.Column="3" 
                     Content="Debug"
-                    Click="DebugButton_Click"/>
+                    Click="DebugButton_Click"/>-->
         </Grid>
 
         <Separator Grid.Row="1"/>

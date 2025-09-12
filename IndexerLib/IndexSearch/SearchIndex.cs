@@ -35,23 +35,10 @@ namespace IndexerLib.IndexSearch
             return results.OrderBy(r => r.DocId).ToList();
         }
 
-        static List<List<string>> GenerateWordLists(string query)
-        {
-            var splitQuery = query.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
-            var wordsStore = WordsStore.GetWords();
+      
 
-            var result = new List<List<string>>(splitQuery.Count);
-            for (int i = 0; i < splitQuery.Count; i++)
-                result.Add(new List<string>());
 
-            foreach (var word in wordsStore)
-                for (int x = 0; x < splitQuery.Count; x++)
-                    if (IsWildcardMatch(splitQuery[x], word))
-                        result[x].Add(word);
-
-            return result;
-        }
-
+        // uses an iterator to calcaulte postion of word in index based on its postion in the wordstore
         static List<List<int>> GenerateWordPositions(string query)
         {
             var splitQuery = query.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -123,33 +110,7 @@ namespace IndexerLib.IndexSearch
             return p == pattern.Length;
         }
 
-        static List<List<Token>> GetTokenLists(List<List<string>> wordLists)
-        {
-            var tokenLists = new List<List<Token>>(wordLists.Count);
-            for (int i = 0; i < wordLists.Count; i++)
-                tokenLists.Add(new List<Token>());
-
-            using (var reader = new IndexReader())
-            {
-                for (int x = 0; x < wordLists.Count; x++)
-                {
-                    foreach (string word in wordLists[x])
-                    {
-                        //Console.WriteLine(DateTime.Now);
-                        var data = reader.GetTokenData(word);
-                        //Console.WriteLine(DateTime.Now);
-                        if (data != null)
-                        {
-                            var tokenGroup = Serializer.DeserializeTokenGroup(data);
-                            tokenLists[x].AddRange(tokenGroup);
-                        }
-                        //Console.WriteLine(DateTime.Now);
-                    }
-                }
-            }
-            return tokenLists;
-        }
-
+        //faster method using premapped index keys by comparing them to wordstore
         static List<List<Token>> GetTokenListsByPos(List<List<int>> posLists)
         {
             var tokenLists = new List<List<Token>>(posLists.Count);
@@ -296,3 +257,48 @@ namespace IndexerLib.IndexSearch
         }
     }
 }
+
+
+//static List<List<string>> GenerateWordLists(string query)
+//{
+//    var splitQuery = query.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+//    var wordsStore = WordsStore.GetWords();
+
+//    var result = new List<List<string>>(splitQuery.Count);
+//    for (int i = 0; i < splitQuery.Count; i++)
+//        result.Add(new List<string>());
+
+//    foreach (var word in wordsStore)
+//        for (int x = 0; x < splitQuery.Count; x++)
+//            if (IsWildcardMatch(splitQuery[x], word))
+//                result[x].Add(word);
+
+//    return result;
+//}
+
+//static List<List<Token>> GetTokenLists(List<List<string>> wordLists)
+//{
+//    var tokenLists = new List<List<Token>>(wordLists.Count);
+//    for (int i = 0; i < wordLists.Count; i++)
+//        tokenLists.Add(new List<Token>());
+
+//    using (var reader = new IndexReader())
+//    {
+//        for (int x = 0; x < wordLists.Count; x++)
+//        {
+//            foreach (string word in wordLists[x])
+//            {
+//                //Console.WriteLine(DateTime.Now);
+//                var data = reader.GetTokenData(word);
+//                //Console.WriteLine(DateTime.Now);
+//                if (data != null)
+//                {
+//                    var tokenGroup = Serializer.DeserializeTokenGroup(data);
+//                    tokenLists[x].AddRange(tokenGroup);
+//                }
+//                //Console.WriteLine(DateTime.Now);
+//            }
+//        }
+//    }
+//    return tokenLists;
+//}

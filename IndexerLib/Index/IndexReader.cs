@@ -128,80 +128,6 @@ namespace IndexerLib.Index
             return _reader.ReadBytes(length);
         }
 
-
-        /// <summary>
-        /// Retrieves a stored block given its string key.
-        /// </summary>
-        public byte[] GetTokenData(string key)
-        {
-            var hash = Sha256.ComputeHash(Encoding.UTF8.GetBytes(key));
-            return GetTokenDataByHash(hash);
-        }
-
-        /// <summary>
-        /// Retrieves a stored block given its hash.
-        /// </summary>
-        public byte[] GetTokenDataByHash(byte[] hash)
-        {
-            if (hash == null)
-                return null;
-
-            // Find matching entry using binary search
-            var entry = BinarySearchIndex(hash);
-            if (entry == null)
-                return null;
-
-            // Read and return block from file
-            var block = ReadBlock(entry);
-            if (block == null)
-                return null;
-
-            return block;
-        }
-
-        /// <summary>
-        /// Performs a binary search on the sorted index table to find a given hash.
-        /// </summary>
-        IndexKey BinarySearchIndex(byte[] targetHash)
-        {
-            int low = 0, high = _indexCount - 1;
-
-            while (low <= high)
-            {
-                int mid = (low + high) / 2;
-
-                // Calculate entry position: index start + 4-byte count header + N*entrySize
-                long entryPos = _indexStart + 4 + (mid * 44); // 44 = 32-byte hash + 8-byte offset + 4-byte length
-                _reader.BaseStream.Seek(entryPos, SeekOrigin.Begin);
-
-                // Read hash for comparison
-                byte[] hash = _reader.ReadBytes(32);
-
-                int cmp = ByteComparer.Compare(hash, targetHash);
-
-                if (cmp == 0) // Match found
-                {
-                    long offset = _reader.ReadInt64();
-                    int length = _reader.ReadInt32();
-
-                    return new IndexKey
-                    {
-                        Hash = hash,
-                        Offset = offset,
-                        Length = length
-                    };
-                }
-
-                // Narrow search range
-                if (cmp < 0)
-                    low = mid + 1;
-                else
-                    high = mid - 1;
-            }
-
-            return null; // Not found
-        }
-
         /// <summary>
         /// Reads a data block from the file based on its index entry.
         /// </summary>
@@ -231,3 +157,76 @@ namespace IndexerLib.Index
         }
     }
 }
+
+///// <summary>
+///// Retrieves a stored block given its string key.
+///// </summary>
+//public byte[] GetTokenData(string key)
+//{
+//    var hash = Sha256.ComputeHash(Encoding.UTF8.GetBytes(key));
+//    return GetTokenDataByHash(hash);
+//}
+
+///// <summary>
+///// Retrieves a stored block given its hash.
+///// </summary>
+//public byte[] GetTokenDataByHash(byte[] hash)
+//{
+//    if (hash == null)
+//        return null;
+
+//    // Find matching entry using binary search
+//    var entry = BinarySearchIndex(hash);
+//    if (entry == null)
+//        return null;
+
+//    // Read and return block from file
+//    var block = ReadBlock(entry);
+//    if (block == null)
+//        return null;
+
+//    return block;
+//}
+
+///// <summary>
+///// Performs a binary search on the sorted index table to find a given hash.
+///// </summary>
+//IndexKey BinarySearchIndex(byte[] targetHash)
+//{
+//    int low = 0, high = _indexCount - 1;
+
+//    while (low <= high)
+//    {
+//        int mid = (low + high) / 2;
+
+//        // Calculate entry position: index start + 4-byte count header + N*entrySize
+//        long entryPos = _indexStart + 4 + (mid * 44); // 44 = 32-byte hash + 8-byte offset + 4-byte length
+//        _reader.BaseStream.Seek(entryPos, SeekOrigin.Begin);
+
+//        // Read hash for comparison
+//        byte[] hash = _reader.ReadBytes(32);
+
+//        int cmp = ByteComparer.Compare(hash, targetHash);
+
+//        if (cmp == 0) // Match found
+//        {
+//            long offset = _reader.ReadInt64();
+//            int length = _reader.ReadInt32();
+
+//            return new IndexKey
+//            {
+//                Hash = hash,
+//                Offset = offset,
+//                Length = length
+//            };
+//        }
+
+//        // Narrow search range
+//        if (cmp < 0)
+//            low = mid + 1;
+//        else
+//            high = mid - 1;
+//    }
+
+//    return null; // Not found
+//}

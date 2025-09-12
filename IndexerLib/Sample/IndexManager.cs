@@ -27,7 +27,12 @@ namespace IndexerLib.Sample
 
             Timer progressTimer = new Timer(2000); // every 2s
             progressTimer.Elapsed += (sender, e) =>
-                Console.WriteLine($"File Progress: {currentIndex} / {fileCount}");
+            {
+                string msg = $"File Progress: {currentIndex} / {fileCount}";
+                if (Console.ReadLine() != msg)
+                    Console.WriteLine(msg);
+            };
+               
             progressTimer.Start();
 
             var wal = new WAL();

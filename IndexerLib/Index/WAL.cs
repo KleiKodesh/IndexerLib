@@ -91,12 +91,12 @@ namespace IndexerLib.Index
             int flushCount = groupedData.Count;
             int flushIndex = 0;
 
-            // Progress reporting every second
-            System.Timers.Timer progressTimer = new System.Timers.Timer(1000);
-            progressTimer.Elapsed += (sender, e) =>
-                Console.WriteLine($"Flush Progress: {flushIndex} / {flushCount}");
+            //// Progress reporting every second
+            //System.Timers.Timer progressTimer = new System.Timers.Timer(1000);
+            //progressTimer.Elapsed += (sender, e) =>
+            //    Console.WriteLine("");
 
-            progressTimer.Start();
+            //progressTimer.Start();
 
             string indexPath;
             using (var writer = new IndexWriter())
@@ -110,9 +110,9 @@ namespace IndexerLib.Index
                 indexPath = writer.TokenStorePath;
             }
 
-            // Cleanup
-            progressTimer.Stop();
-            progressTimer.Dispose();
+            //// Cleanup
+            //progressTimer.Stop();
+            //progressTimer.Dispose();
 
             GC.Collect();
             GC.WaitForPendingFinalizers();
