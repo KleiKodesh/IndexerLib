@@ -21,7 +21,7 @@ namespace IndexerLib.Index
         // In-memory log buffer (key = token string, value = serialized token bytes)
         private readonly ConcurrentQueue<KeyValuePair<string, byte[]>> _logQueue = new ConcurrentQueue<KeyValuePair<string, byte[]>>();
         int _threshHold;         // Threshold for when to flush (based on memory availability)
-        short mergeCountdown = 30;
+        short mergeCountdown = 25;
 
         /// <summary>
         /// Initializes WAL with dynamic flush threshold based on available memory.
@@ -91,12 +91,12 @@ namespace IndexerLib.Index
             int flushCount = groupedData.Count;
             int flushIndex = 0;
 
-            //// Progress reporting every second
-            //System.Timers.Timer progressTimer = new System.Timers.Timer(1000);
-            //progressTimer.Elapsed += (sender, e) =>
-            //    Console.WriteLine("");
+            // Progress reporting every second
+            System.Timers.Timer progressTimer = new System.Timers.Timer(1000);
+            progressTimer.Elapsed += (sender, e) =>
+                Console.WriteLine("");
 
-            //progressTimer.Start();
+            progressTimer.Start();
 
             string indexPath;
             using (var writer = new IndexWriter())
@@ -110,9 +110,9 @@ namespace IndexerLib.Index
                 indexPath = writer.TokenStorePath;
             }
 
-            //// Cleanup
-            //progressTimer.Stop();
-            //progressTimer.Dispose();
+            // Cleanup
+            progressTimer.Stop();
+            progressTimer.Dispose();
 
             GC.Collect();
             GC.WaitForPendingFinalizers();
@@ -122,7 +122,7 @@ namespace IndexerLib.Index
             if (mergeCountdown == 0)
             {
                 IndexMerger.Merge();
-                mergeCountdown = 30;
+                mergeCountdown = 25;
             }
 
         }
