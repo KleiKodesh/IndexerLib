@@ -11,12 +11,17 @@
     public class DocIdStore : IndexerBase, IDisposable
     {
         private readonly SQLiteConnection _connection; // Active SQLite connection
+        readonly string _otzariaPath;
 
         /// <summary>
         /// Initializes the IdStore by ensuring the database and table exist.
         /// </summary>
-        public DocIdStore()
+        public DocIdStore(string otzariaPath = "C:\\")
         {
+            if (!otzariaPath.EndsWith("\\"))
+                otzariaPath += "\\";
+            _otzariaPath = otzariaPath;
+
             // If the DB file doesn't exist, create it (and containing folder if needed)
             if (!File.Exists(DocIdStorePath))
             {
@@ -55,10 +60,13 @@
         /// </summary>
         /// <param name="name">The string to store.</param>
         /// <returns>The integer ID associated with the given name.</returns>
-        public int Add(string name)
+        public int Add(string path)
         {
+            //ensure relative path
+            path = path.Replace(_otzariaPath, "").Trim('\\');
+
             // Check if name already exists in the table
-            int existingId = GetIdByPath(name);
+            int existingId = GetIdByPath(path);
             if (existingId != -1)
                 return existingId;
 
@@ -66,7 +74,7 @@
             string insertQuery = "INSERT INTO IdStore (Name) VALUES (@Name);";
             using (var command = new SQLiteCommand(insertQuery, _connection))
             {
-                command.Parameters.AddWithValue("@Name", name);
+                command.Parameters.AddWithValue("@Name", path);
                 command.ExecuteNonQuery();
             }
 
@@ -79,12 +87,15 @@
         /// </summary>
         /// <param name="name">The name to search for.</param>
         /// <returns>The ID if found, otherwise -1.</returns>
-        public int GetIdByPath(string name)
+        public int GetIdByPath(string path)
         {
+            //ensure relative path
+            path = path.Replace(_otzariaPath, "");
+
             string selectQuery = "SELECT Id FROM IdStore WHERE Name = @Name;";
             using (var command = new SQLiteCommand(selectQuery, _connection))
             {
-                command.Parameters.AddWithValue("@Name", name);
+                command.Parameters.AddWithValue("@Name", path);
                 using (var reader = command.ExecuteReader())
                 {
                     if (reader.Read())
@@ -108,7 +119,7 @@
                 using (var reader = command.ExecuteReader())
                 {
                     if (reader.Read())
-                        return reader.GetString(0); // Return the Name column value
+                        return _otzariaPath + reader.GetString(0); // Return the Name column value appended to otzria path
                 }
             }
             return null; // Not found
