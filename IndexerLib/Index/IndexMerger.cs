@@ -25,7 +25,6 @@ namespace IndexerLib.Index
                 writerPath = writer.TokenStorePath;
                 var indexReaders = new List<IndexReader>();
 
-
                 foreach (var file in files)
                 {
                     if (file == writer.TokenStorePath)

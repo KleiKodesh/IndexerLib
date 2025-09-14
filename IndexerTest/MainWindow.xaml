@@ -28,10 +28,12 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="auto"/>
-                <ColumnDefinition Width="auto"/>
-                <ColumnDefinition Width="auto"/>
             </Grid.ColumnDefinitions>
 
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+            </Grid.RowDefinitions>
             <TextBox x:Name="SearchBox" 
                      Margin="5" 
                      Padding="3"
@@ -40,14 +42,28 @@
                     Grid.Column="1" 
                     Content="חיפוש" 
                     Click="SearchButton_Click"/>
-            <Button x:Name="CreateIndexButton" 
-                    Grid.Column="2" 
+
+            <StackPanel Orientation="Horizontal"
+                        Grid.Row="1"
+                        Grid.ColumnSpan="2">
+                <Button x:Name="CreateIndexButton" 
                     Content="צור אינדקס"
                     Click="CreateIndexButton_Click"/>
-            <!--<Button x:Name="DebugButton" 
+                <TextBlock Text="ניצול משאבי מחשב:" 
+                       VerticalAlignment="Center" Margin="5"/>
+                <local:UpDownTextBox x:Name="MemoryUsageBox"
+                    Width="40"
+                                 Margin="5" Text="10" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                <TextBlock Text="מרחק בין מילים:" 
+                            VerticalAlignment="Center" Margin="5"/>
+                <local:UpDownTextBox x:Name="AdjacencySettingsBox"
+                    Width="40"
+                    Margin="5" Text="2" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                <!--<Button x:Name="DebugButton" 
                     Grid.Column="3" 
                     Content="Debug"
                     Click="DebugButton_Click"/>-->
+            </StackPanel>
         </Grid>
 
         <Separator Grid.Row="1"/>

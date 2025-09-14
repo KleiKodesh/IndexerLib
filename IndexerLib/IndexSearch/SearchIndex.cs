@@ -9,7 +9,7 @@ namespace IndexerLib.IndexSearch
 {
     public static class SearchIndex
     {
-        public static List<SearchResult> Execute(string query, short adjacency = 2)
+        public static IEnumerable<SearchResult> Execute(string query, short adjacency = 2)
         {
             var startTime = DateTime.Now;
             Console.WriteLine("Parsing query..." + DateTime.Now);
@@ -32,7 +32,7 @@ namespace IndexerLib.IndexSearch
             var results = OrderedAdjacencyMatch(validDocs, adjacency);
 
             Console.WriteLine("Search complete. Elapsed: " + (DateTime.Now - startTime));
-            return results.OrderBy(r => r.DocId).ToList();
+            return results;
         }
 
       
@@ -188,13 +188,12 @@ namespace IndexerLib.IndexSearch
         }
 
 
-        public static List<SearchResult> OrderedAdjacencyMatch(
-     Dictionary<int, List<Token>> validDocs,
-     short adjacency)
+        public static IEnumerable<SearchResult> OrderedAdjacencyMatch(
+      Dictionary<int, List<Token>> validDocs,
+      int adjacency)
         {
-            var results = new List<SearchResult>();
-
-            foreach (var docEntry in validDocs)
+            adjacency = adjacency - 1;
+            foreach (var docEntry in validDocs.OrderBy(kvp => kvp.Key)) // order by doc 
             {
                 var postingsLists = docEntry.Value
                     .Select(t => t.Postings)
@@ -203,8 +202,6 @@ namespace IndexerLib.IndexSearch
 
                 if (postingsLists.Count != docEntry.Value.Count)
                     continue;
-
-                var matches = new List<Postings[]>();
 
                 int i0 = 0;
                 while (i0 < postingsLists[0].Count)
@@ -234,27 +231,19 @@ namespace IndexerLib.IndexSearch
                     }
 
                     if (valid)
-                        matches.Add(currentMatch);
+                    {
+                        yield return new SearchResult
+                        {
+                            DocId = docEntry.Key,
+                            MatchedPostings = currentMatch
+                        };
+                    }
 
                     i0++;
                 }
-
-                if (matches.Count > 0)
-                {
-                    foreach (var match in matches)
-                    {
-                        results.Add(new SearchResult
-                        {
-                            DocId = docEntry.Key,
-                            MatchedPostings = match
-                        });
-                    }
-                }
-
             }
-
-            return results;
         }
+
     }
 }
 

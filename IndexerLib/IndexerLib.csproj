@@ -106,6 +106,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Helpers\ByteArrayComparer.cs" />
+    <Compile Include="Helpers\FsSort.cs" />
     <Compile Include="Helpers\StringExtensions.cs" />
     <Compile Include="Helpers\MyBinaryWriter.cs" />
     <Compile Include="Helpers\MyBinaryReader.cs" />

@@ -52,26 +52,21 @@ namespace IndexerLib.IndexManger
                 var keys = reader.GetAllKeys().ToList();
                 var byteComparer = new ByteArrayEqualityComparer();
 
-                using (var sha = SHA256.Create())
-                {
                     // Create a dictionary mapping hash -> word
                     var wordMap = new Dictionary<byte[], string>(new ByteArrayEqualityComparer());
                     foreach (var word in words)
                     {
                         string normalizedWord = word.Normalize(NormalizationForm.FormC);
-                        byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(normalizedWord));
+                        byte[] hash = reader.Sha256.ComputeHash(Encoding.UTF8.GetBytes(normalizedWord));
                         wordMap[hash] = word;
                     }
 
                     // Prepare sorted list based on index order
                     var sortedWords = new List<string>();
                     foreach (var key in keys)
-                    {
                         if (wordMap.TryGetValue(key.Hash, out var word))
-                        {
                             sortedWords.Add(word);
-                        }
-                    }
+                        else sortedWords.Add(string.Empty);
 
                     // Write back to file
                     using (var writer = new StreamWriter(_filePath, false, Encoding.UTF8))
@@ -79,7 +74,7 @@ namespace IndexerLib.IndexManger
                         foreach (var word in sortedWords)
                             writer.WriteLine(word);
                     }
-                }
+                
 
                 Console.WriteLine("WordsStore sorted based on index order!");
             }

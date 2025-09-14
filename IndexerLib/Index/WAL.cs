@@ -94,7 +94,7 @@ namespace IndexerLib.Index
             // Progress reporting every second
             System.Timers.Timer progressTimer = new System.Timers.Timer(1000);
             progressTimer.Elapsed += (sender, e) =>
-                Console.WriteLine("");
+                Console.WriteLine("Flushing: " + flushIndex + "\\" + flushCount);
 
             progressTimer.Start();
 

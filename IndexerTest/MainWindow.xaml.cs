@@ -1,13 +1,16 @@
 ﻿using IndexerLib.Helpers;
 using IndexerLib.Index;
 using IndexerLib.IndexManger;
+using IndexerLib.IndexSearch;
 using IndexerLib.Sample;
 using Microsoft.WindowsAPICodePack.Dialogs;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
@@ -42,41 +45,54 @@ namespace IndexerTest
             if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
             {
                 string directory = dialog.FileName;
-                IndexManager.CreateIndex(directory);
+                IndexManager.CreateIndex(directory, new string[] { ".txt", ".pdf"}, MemoryUsageBox.Value);
             }
         }
 
 
-        void Search()
+        public async void Search()
         {
-            // Run the query on your index
-            var results = IndexManager.Search(SearchBox.Text);
+            // capture UI values *before* going to background thread
+            string query = SearchBox.Text;
+            short adjacency = (short)AdjacencySettingsBox.Value;
 
-            var sb = new StringBuilder();
             string htmlStyle = "font-family:Segoe UI; direction:rtl;";
+            string initialHtml = $"<html><body style='{htmlStyle}' id='results'></body></html>";
+            WebView.NavigateToString(initialHtml);
 
-            sb.AppendLine($"<html><body style='{htmlStyle}'>");
-
-            foreach (var result in results)
+            await Task.Run(async () =>
             {
-                string safePath = WebUtility.HtmlEncode(result.DocId.ToString());
+                using (var docIdStore = new DocIdStore())
+                {
+                    foreach (var result in SearchIndex.Execute(query, adjacency))
+                    {
+                        // heavy work on background thread
+                        SnippetBuilder.GenerateSnippet(result, docIdStore);
 
-                sb.AppendLine("<div style='margin-bottom:12px;'>");
-                sb.AppendLine($"<b>Document {result.DocId}</b><br/>");
-                sb.AppendLine($"<small style='color:gray;'>Path: {safePath}</small><br/>");
+                        string safePath = WebUtility.HtmlEncode(result.DocPath ?? "");
+                        string snippetHtml = $@"
+                    <div style='margin-bottom:12px;'>
+                        <b>Document {result.DocId}</b><br/>
+                        <small style='color:gray;'>Path: {safePath}</small><br/>
+                        {result.Snippet}<br/>
+                    </div>";
 
-                // Snippet is assumed to already contain <mark> tags (safe HTML)
-                sb.AppendLine(result.Snippet + "<br/>");
-
-                sb.AppendLine("</div>");
-
-            }
-
-            sb.AppendLine("</body></html>");
-            WebView.NavigateToString(sb.ToString());
+                        // marshal back to UI thread
+                        await Application.Current.Dispatcher.InvokeAsync(async () =>
+                        {
+                            string js = $@"
+                        var container = document.getElementById('results');
+                        container.insertAdjacentHTML('beforeend', `{snippetHtml}`);
+                    ";
+                            await WebView.ExecuteScriptAsync(js);
+                        });
+                    }
+                }
+            });
         }
 
-      
+
+
         private void DebugButton_Click(object sender, RoutedEventArgs e)
         {
             WordsStore.SortWordsByIndex();
