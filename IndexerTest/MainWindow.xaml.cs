@@ -7,6 +7,7 @@ using Microsoft.WindowsAPICodePack.Dialogs;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -85,11 +86,10 @@ namespace IndexerTest
 
                             SnippetBuilder.GenerateSnippet(result, docIdStore);
 
-                            string safePath = WebUtility.HtmlEncode(result.DocPath ?? "");
                             string snippetHtml = $@"
                         <div style='margin-bottom:12px;'>
                             <b>Document {result.DocId}</b><br/>
-                            <small style='color:gray;'>Path: {safePath}</small><br/>
+                            <small style='color:gray;'>{Path.GetFileName(result.DocPath)}</small><br/>
                             {result.Snippet}<br/>
                         </div>";
 

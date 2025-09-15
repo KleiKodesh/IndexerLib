@@ -134,6 +134,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="IndexSearch\TextFile1.txt" />
+    <Content Include="ideas.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
