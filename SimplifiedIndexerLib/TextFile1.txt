@@ -1,0 +1,2 @@
+﻿add code to take care of fractured index and delete or merge keys if neccary
+- look into tries for storing the index keys in memory

@@ -1,7 +1,8 @@
-﻿using SimplifiedIndexerLib.IndexManger;
+﻿using SimplifiedIndexerLib.Helpers;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices.ComTypes;
 using System.Security.Cryptography;
 using System.Text;
@@ -18,7 +19,7 @@ namespace SimplifiedIndexerLib.Index
         protected readonly SHA256 _sha256;
 
         protected long currentOffset = 0; // instead of intf
-        protected List<string> _words;
+        protected HashSet<string> _words;
 
         public IndexWriter(string name = "")
         {
@@ -26,7 +27,7 @@ namespace SimplifiedIndexerLib.Index
                 TokenStorePath = Path.Combine(IndexDirectoryPath, name + ".tks");
 
             EnsureUniqueTokenStorePath();
-            _tempIndexPath = TokenStorePath + ".tmp";
+            _tempIndexPath = TokenStorePath + ".keys";
 
             _dataStream = new FileStream(TokenStorePath, FileMode.OpenOrCreate, FileAccess.Write,
                 FileShare.None, bufferSize: 81920, FileOptions.SequentialScan);
@@ -37,7 +38,7 @@ namespace SimplifiedIndexerLib.Index
             _indexKeyWriter = new BinaryWriter(_indexKeyStream, Encoding.UTF8, leaveOpen: true);
 
             _sha256 = SHA256.Create();
-            _words = new List<string>();
+            _words = new HashSet<string>(); // HashSet in ensures the uniqueness of the words. 
         }
 
         public virtual void Put(string key, Stream stream)
@@ -81,17 +82,7 @@ namespace SimplifiedIndexerLib.Index
             _indexKeyWriter.Dispose();
             _indexKeyStream.Dispose();
 
-            using (var tempIndexStream = new FileStream(_tempIndexPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-            {
-                tempIndexStream.CopyTo(_dataStream);
-
-                // Build footer: high 16 bits = magic marker, low 48 bits = index length
-                ulong footer = ((ulong)MagicMarker << 48) | (ulong)tempIndexStream.Length;
-                _dataWriter.Write(footer);
-            }
-
-            if (File.Exists(_tempIndexPath))
-                File.Delete(_tempIndexPath);
+            AppendKeys();
 
             _dataWriter.Flush();
             _dataWriter.Dispose();
@@ -99,6 +90,35 @@ namespace SimplifiedIndexerLib.Index
 
             if (_words.Count > 0)
                 WordsStore.AddWords(_words);
+        }
+
+        void AppendKeys()
+        {
+            using (var tempIndexStream = new FileStream(_tempIndexPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var reader = new BinaryReader(tempIndexStream, Encoding.UTF8, leaveOpen: true))
+            {
+                // Build footer: high 16 bits = magic marker, low 48 bits = index length
+                ulong footer = ((ulong)MagicMarker << 48) | (ulong)tempIndexStream.Length;
+
+                var entries = new List<IndexKey>();
+                while (tempIndexStream.Position < tempIndexStream.Length)
+                    entries.Add(new IndexKey(reader));
+
+                var sortedIndex = entries.OrderBy(k => k.Hash, new ByteArrayComparer());
+
+                // Append sorted index to data stream
+                foreach (var entry in sortedIndex)
+                {
+                    _dataWriter.Write(entry.Hash);
+                    _dataWriter.Write(entry.Offset);
+                    _dataWriter.Write(entry.Length);
+                }
+
+                _dataWriter.Write(footer);
+            }
+
+            if (File.Exists(_tempIndexPath))
+                File.Delete(_tempIndexPath);
         }
     }
 }

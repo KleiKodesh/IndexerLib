@@ -1,4 +1,4 @@
-﻿using SimplifiedIndexerLib.IndexManger;
+﻿
 using SimplifiedIndexerLib.Tokens;
 using System;
 using System.Collections.Generic;

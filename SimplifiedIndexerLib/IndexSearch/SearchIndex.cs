@@ -1,5 +1,4 @@
 ﻿using SimplifiedIndexerLib.Index;
-using SimplifiedIndexerLib.IndexManger;
 using SimplifiedIndexerLib.Tokens;
 using System;
 using System.Collections.Generic;
@@ -14,7 +13,7 @@ namespace SimplifiedIndexerLib.IndexSearch
             var startTime = DateTime.Now;
             Console.WriteLine("Parsing query..." + DateTime.Now);
             //var wordLists = GenerateWordLists(query);
-            var wordLists = GenerateWordPositions(query);
+            var wordLists = QueryParser.GenerateWordPositions(query);
 
             if (wordLists.Count > 3)
                 adjacency = (short)(adjacency * (wordLists.Count - 2) + wordLists.Count);
@@ -35,74 +34,6 @@ namespace SimplifiedIndexerLib.IndexSearch
             return results;
         }
 
-
-
-
-        // uses an iterator to calcaulte postion of word in index based on its postion in the wordstore
-        static List<List<int>> GenerateWordPositions(string query)
-        {
-            var splitQuery = query.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            var wordsStore = WordsStore.GetWords();
-
-            // Prepare result structure
-            var result = new List<List<int>>(splitQuery.Length);
-            for (int i = 0; i < splitQuery.Length; i++)
-                result.Add(new List<int>());
-
-            // Iterate with index tracking
-            int position = 0;
-            foreach (var word in wordsStore)
-            {
-                for (int x = 0; x < splitQuery.Length; x++)
-                {
-                    if (IsWildcardMatch(splitQuery[x], word))
-                        result[x].Add((position));
-                }
-                position++;
-            }
-
-            return result;
-        }
-
-        private static bool IsWildcardMatch(string pattern, string input)
-        {
-            int p = 0, s = 0;
-            int starIdx = -1, match = 0, starCount = 0;
-
-            while (s < input.Length)
-            {
-                if (p < pattern.Length && pattern[p] == input[s])
-                {
-                    p++;
-                    s++;
-                }
-                else if (p < pattern.Length && pattern[p] == '*')
-                {
-                    starIdx = p++;
-                    match = s;
-                    starCount = 0;
-                }
-                else if (p < pattern.Length && pattern[p] == '?')
-                {
-                    p++;
-                }
-                else if (starIdx != -1 && starCount < 5)
-                {
-                    p = starIdx + 1;
-                    s = ++match;
-                    starCount++;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-
-            while (p < pattern.Length && (pattern[p] == '*' || pattern[p] == '?'))
-                p++;
-
-            return p == pattern.Length;
-        }
 
         //faster method using premapped index keys by comparing them to wordstore
         static List<List<Token>> GetTokenListsByPos(List<List<int>> posLists)

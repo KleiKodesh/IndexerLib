@@ -7,7 +7,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace SimplifiedIndexerLib.IndexManger
+namespace SimplifiedIndexerLib.Index
 {
     public class WordsStore
     {
@@ -20,7 +20,7 @@ namespace SimplifiedIndexerLib.IndexManger
                 : Enumerable.Empty<string>();
         }
 
-        public static void AddWords(List<string> newWords)
+        public static void AddWords(HashSet<string> newWords)
         {
             foreach (string word in GetWords())
                 newWords.Add(word);
@@ -30,6 +30,10 @@ namespace SimplifiedIndexerLib.IndexManger
 
         public static void SortWordsByIndex()
         {
+            int i = 0;
+            int x = GetWords().Count();
+            int y = 0;
+
             var wordMap = new Dictionary<byte[], string>(new ByteArrayEqualityComparer());
 
             using (var sha256 = SHA256.Create())
@@ -42,12 +46,15 @@ namespace SimplifiedIndexerLib.IndexManger
             using (var reader = new IndexReader())
             using (var writer = new StreamWriter(_filePath, false, Encoding.UTF8))
             {
+                i = reader.GetAllKeys().Count();
                 foreach (var key in reader.GetAllKeys())
                     writer.WriteLine(wordMap.TryGetValue(key.Hash, out var w) ? w : "");
-            }
 
+                y = reader.GetAllKeys().Count();
+            }
+            
+            int z = GetWords().Count();
             Console.WriteLine("WordsStore sorted based on index order!");
         }
-
     }
 }

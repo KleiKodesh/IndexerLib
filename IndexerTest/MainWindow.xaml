@@ -6,9 +6,10 @@
         xmlns:local="clr-namespace:IndexerTest"
         xmlns:wv="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
+        SizeToContent="WidthAndHeight"
         FlowDirection="RightToLeft"
         FontSize="14"
-        Title="pcinfogmach indexer" Height="450" Width="450">
+        Title="pcinfogmach indexer" MinHeight="450" MinWidth="450">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -64,9 +65,9 @@
         </Grid>
 
         <Separator Grid.Row="1"/>
-        <Button x:Name="DebugButton"  
+        <!--<Button x:Name="DebugButton"  
      Content="Debug"
-     Click="DebugButton_Click" Grid.Row="1"/>
+     Click="DebugButton_Click" Grid.Row="1"/>-->
 
         <wv:WebView2 x:Name="WebView" 
                      Grid.Row="2"/>

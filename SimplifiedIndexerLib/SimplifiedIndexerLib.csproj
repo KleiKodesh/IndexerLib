@@ -61,6 +61,7 @@
     <Compile Include="Helpers\StringExtensions.cs" />
     <Compile Include="Helpers\TextExtractor.cs" />
     <Compile Include="IndexSearch\Postings.cs" />
+    <Compile Include="IndexSearch\QueryParser.cs" />
     <Compile Include="IndexSearch\SearchIndex.cs" />
     <Compile Include="IndexSearch\SearchResult.cs" />
     <Compile Include="IndexSearch\SnippetBuilder.cs" />
@@ -80,6 +81,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="TextFile1.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

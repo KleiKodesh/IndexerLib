@@ -1,10 +1,6 @@
-﻿using Microsoft.WindowsAPICodePack.Dialogs;
-using MS.WindowsAPICodePack.Internal;
-using SimplifiedIndexerLib.Index;
-using SimplifiedIndexerLib.IndexManger;
-using SimplifiedIndexerLib.IndexSearch;
+﻿using SimplifiedIndexerLib.Index;
+using Microsoft.WindowsAPICodePack.Dialogs;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -14,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using SimplifiedIndexerLib.IndexSearch;
 
 namespace IndexerTest
 {
@@ -50,13 +47,13 @@ namespace IndexerTest
                 {
                     string directory = dialog.FileName;
                     IndexCreator.Execute(directory, new string[] { ".txt", ".pdf" }, MemoryUsageBox.Value);
+                    //IndexManager.CreateIndex(directory, new string[] { ".txt", ".pdf" }, MemoryUsageBox.Value);
                 }
             }
             catch (Exception ex) { Console.WriteLine(ex.Message); }
         }
 
 
-        // change idea to virtualiztion one day for now just limit results to 20000
         public async void Search()
         {
             cts?.Cancel();
@@ -89,11 +86,11 @@ namespace IndexerTest
                                     return;
 
                                 sb.AppendLine($@"
-<div style='margin-bottom:12px;'>
-   <b>Document {result.DocId}</b><br/>
-   <small style='color:gray;'>{Path.GetFileName(result.DocPath)}</small><br/>
-   {snippet}<br/>
-</div>");
+        <div style='margin-bottom:12px;'>
+           <b>Document {result.DocId}</b><br/>
+           <small style='color:gray;'>{Path.GetFileName(result.DocPath)}</small><br/>
+           {snippet}<br/>
+        </div>");
                             }
 
                             if (sb.Length > 0)
@@ -101,8 +98,8 @@ namespace IndexerTest
                                 Application.Current.Dispatcher.Invoke(() =>
                                 {
                                     string js = $@"
-var container = document.getElementById('results');
-container.insertAdjacentHTML('beforeend', `{sb}`);";
+        var container = document.getElementById('results');
+        container.insertAdjacentHTML('beforeend', `{sb}`);";
                                     WebView.ExecuteScriptAsync(js);
                                 });
                             }
@@ -115,61 +112,10 @@ container.insertAdjacentHTML('beforeend', `{sb}`);";
 
 
 
+
         private void DebugButton_Click(object sender, RoutedEventArgs e)
         {
-            using (var reader = new IndexReader())
-            {
-                var tokens = reader.GetAllTokens().ToList();
-
-                var json = System.Text.Json.JsonSerializer.Serialize(
-                    tokens,
-                    new System.Text.Json.JsonSerializerOptions
-                    {
-                        WriteIndented = true, // pretty-print with newlines
-                        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping // show Unicode directly
-                    });
-
-                // Build the path to a temp file on the desktop
-                string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                string tempFilePath = Path.Combine(desktopPath, "tokens_temp.json");
-
-                // Write the JSON to the file
-                File.WriteAllText(tempFilePath, json);
-            }
-        }
-
-
-        void TokenizerTest()
-        {
-            var dialog = new CommonOpenFileDialog
-            {
-                IsFolderPicker = false, // pick a single file
-                Filters = { new CommonFileDialogFilter("Text files", "*.txt") }
-            };
-
-            if (dialog.ShowDialog() != CommonFileDialogResult.Ok) return;
-
-            string filePath = dialog.FileName;
-            string text = System.IO.File.ReadAllText(filePath);
-
-            // Tokenize
-            var tokensDict = SimplifiedIndexerLib.Tokens.RegexTokenizer.Tokenize(text, filePath);
-
-            // Build HTML list
-            var sb = new StringBuilder();
-            sb.AppendLine("<html><body style='font-family:Segoe UI; direction:rtl;'>");
-            sb.AppendLine("<h3>Tokens:</h3>");
-            sb.AppendLine("<ul>");
-            foreach (var token in tokensDict)
-            {
-                foreach (var pos in token.Value.Postions)
-                    sb.AppendLine($"<li>{pos + ", " + WebUtility.HtmlEncode(token.Key)}</li>");
-            }
-
-            sb.AppendLine("</ul>");
-            sb.AppendLine("</body></html>");
-
-            WebView.NavigateToString(sb.ToString());
+           
         }
     }
 }

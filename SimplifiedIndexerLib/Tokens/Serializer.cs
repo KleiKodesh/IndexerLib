@@ -8,16 +8,25 @@ namespace SimplifiedIndexerLib.Tokens
 {
     public static class Serializer
     {
-        // Serializes a Token using 7-bit encoded integers (no delta encoding).
+        // Serializes a Token using 7-bit encoded integers with delta encoding for positions.
+        // That way, smaller integers are written, which compresses better with Write7BitEncodedInt.
         public static byte[] SerializeToken(Token token)
         {
             using (var stream = new MemoryStream())
             using (var writer = new MyBinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
             {
                 writer.Write7BitEncodedInt(token.DocId);
-                writer.Write7BitEncodedInt(token.Postions.Count);
-                foreach (var pos in token.Postions.OrderBy(p => p))
-                    writer.Write7BitEncodedInt(pos);
+
+                var orderedPositions = token.Postions.OrderBy(p => p).ToList();
+                writer.Write7BitEncodedInt(orderedPositions.Count);
+
+                int prev = 0;
+                foreach (var pos in orderedPositions)
+                {
+                    int delta = pos - prev;
+                    writer.Write7BitEncodedInt(delta);
+                    prev = pos;
+                }
 
                 return stream.ToArray();
             }
@@ -28,6 +37,7 @@ namespace SimplifiedIndexerLib.Tokens
             var tokens = new List<Token>();
 
             if (data != null)
+            {
                 using (var stream = new MemoryStream(data))
                 using (var reader = new MyBinaryReader(stream, Encoding.UTF8))
                 {
@@ -38,6 +48,7 @@ namespace SimplifiedIndexerLib.Tokens
                             tokens.Add(token);
                     }
                 }
+            }
 
             return tokens;
         }
@@ -49,9 +60,15 @@ namespace SimplifiedIndexerLib.Tokens
                 var token = new Token { DocId = reader.Read7BitEncodedInt() };
 
                 int count = reader.Read7BitEncodedInt();
+                int prev = 0;
 
                 for (int i = 0; i < count; i++)
-                    token.Postions.Add(reader.Read7BitEncodedInt()); // read absolute value
+                {
+                    int delta = reader.Read7BitEncodedInt();
+                    int pos = prev + delta;
+                    token.Postions.Add(pos);
+                    prev = pos;
+                }
 
                 return token;
             }

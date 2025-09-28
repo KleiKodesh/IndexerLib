@@ -13,7 +13,7 @@ namespace IndexerLib.IndexSearch
         /// Builds a single highlighted snippet per SearchResult.
         /// Assumes result.MatchedPostings contains all postings that belong to one snippet.
         /// </summary>
-        public static void BuildSnippets(IEnumerable<SearchResult> searchResults, int windowSize = 100)
+        public static void BuildSnippets(List<SearchResult> searchResults, int windowSize = 100)
         {
             if (searchResults == null) return;
 

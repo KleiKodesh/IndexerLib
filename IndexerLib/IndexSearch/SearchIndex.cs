@@ -23,16 +23,16 @@ namespace IndexerLib.IndexSearch
 
             Console.WriteLine("Querying index..." + DateTime.Now);
             //var tokenLists = GetTokenLists(wordLists);
-            var tokenLists = GetTokenListsByPos(wordLists);
+            //var tokenLists = GetTokenListsByPos(wordLists);
 
-            Console.WriteLine("Grouping by doc..." + DateTime.Now);
-            var validDocs = GroupAndFilterByDocId(tokenLists);
+            //Console.WriteLine("Grouping by doc..." + DateTime.Now);
+            //var validDocs = GroupAndFilterByDocId(tokenLists);
 
-            Console.WriteLine("Generating results..." + DateTime.Now);
-            var results = OrderedAdjacencyMatch(validDocs, adjacency);
+            //Console.WriteLine("Generating results..." + DateTime.Now);
+            //var results = OrderedAdjacencyMatch(validDocs, adjacency);
 
             Console.WriteLine("Search complete. Elapsed: " + (DateTime.Now - startTime));
-            return results;
+            return new List<SearchResult>();
         }
 
 

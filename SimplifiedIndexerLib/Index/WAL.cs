@@ -1,6 +1,5 @@
 ﻿using SimplifiedIndexerLib.Helpers;
 using SimplifiedIndexerLib.Index;
-using SimplifiedIndexerLib.IndexManger;
 using SimplifiedIndexerLib.Tokens;
 using System;
 using System.Collections.Concurrent;
@@ -53,7 +52,7 @@ namespace SimplifiedIndexerLib.Index
             if (_streams.IsEmpty)
                 return;
 
-            Console.WriteLine("Flushing");
+            Console.WriteLine("Flushing...");
             if (ProgressTimer != null)
                 ProgressTimer.Stop();
 

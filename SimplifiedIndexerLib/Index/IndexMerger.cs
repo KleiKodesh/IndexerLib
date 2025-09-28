@@ -1,13 +1,8 @@
 ﻿using SimplifiedIndexerLib.Helpers;
-using SimplifiedIndexerLib.Index;
-using SimplifiedIndexerLib.Tokens;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Security;
-using System.Reflection.Emit;
-using System.Runtime.Remoting.Messaging;
 using System.Text;
 
 namespace SimplifiedIndexerLib.Index
@@ -30,11 +25,7 @@ namespace SimplifiedIndexerLib.Index
                 var indexReaders = new List<IndexReader>();
 
                 foreach (var file in files)
-                {
-                    var newReader = new IndexReader(file);
-                    if (newReader.Enumerator.MoveNext())
-                        indexReaders.Add(newReader);
-                }
+                        indexReaders.Add(new IndexReader(file));
 
                 ReadAndMerge(indexReaders, writer);
 
@@ -74,8 +65,8 @@ namespace SimplifiedIndexerLib.Index
 
                 var currentHash = minEntry.Enumerator.Current.Hash;
 
-                // Collect all readers with the same hash
-                var matches = activeReaders
+                    // Collect all readers with the same hash
+                    var matches = activeReaders
                    .Where(e => comparer.Compare(e.Enumerator.Current.Hash, currentHash) == 0)
                    .ToList();
 
@@ -146,30 +137,5 @@ namespace SimplifiedIndexerLib.Index
 
             return result;
         }
-
-//❌ Produces duplicates if the same token exists across blocks.
-//❌ No sorting, no normalization — order is whatever the readers produce.
-//❌ Impossible to resolve conflicts between tokens without re-parsing.
-//❌ Less flexible if later you want smarter merging logic.
-        //static byte[] MergeBlocks(IEnumerable<IndexReader> indexReaders)
-        //{
-        //    using (var ms = new MemoryStream())
-        //    {
-        //        foreach (var reader in indexReaders)
-        //        {
-        //            var indexKey = reader.Enumerator.Current;
-        //            if (indexKey == null || indexKey.Length <= 0)
-        //                continue;
-
-        //            var blockData = reader.ReadBlock(indexKey.Offset, indexKey.Length);
-        //            if (blockData != null && blockData.Length > 0)
-        //                ms.Write(blockData, 0, blockData.Length);
-        //        }
-
-        //        return ms.ToArray();
-        //    }
-        //}
-
-
     }
 }
