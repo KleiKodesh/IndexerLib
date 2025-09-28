@@ -1,6 +1,8 @@
-﻿using SimplifiedIndexerLib.Index;
-using Microsoft.WindowsAPICodePack.Dialogs;
+﻿using Microsoft.WindowsAPICodePack.Dialogs;
+using SimplifiedIndexerLib.Index;
+using SimplifiedIndexerLib.IndexSearch;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -10,7 +12,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using SimplifiedIndexerLib.IndexSearch;
 
 namespace IndexerTest
 {
@@ -75,6 +76,9 @@ namespace IndexerTest
                     {
                         var results = SearchIndex.Execute(query, adjacency);
 
+                        var batch = new List<string>();
+                        int count = 0;
+
                         foreach (var result in results)
                         {
                             SnippetBuilder.GenerateSnippets(result, docIdStore);
@@ -86,33 +90,54 @@ namespace IndexerTest
                                     return;
 
                                 sb.AppendLine($@"
-        <div style='margin-bottom:12px;'>
-           <b>Document {result.DocId}</b><br/>
-           <small style='color:gray;'>{Path.GetFileName(result.DocPath)}</small><br/>
-           {snippet}<br/>
-        </div>");
+<div style='margin-bottom:12px;'>
+   <b>Document {result.DocId}</b><br/>
+   <small style='color:gray;'>{Path.GetFileName(result.DocPath)}</small><br/>
+   {snippet}<br/>
+</div>");
                             }
 
                             if (sb.Length > 0)
                             {
-                                Application.Current.Dispatcher.Invoke(() =>
-                                {
-                                    string js = $@"
-        var container = document.getElementById('results');
-        container.insertAdjacentHTML('beforeend', `{sb}`);";
-                                    WebView.ExecuteScriptAsync(js);
-                                });
+                                batch.Add(sb.ToString());
+                                count++;
+                            }
+
+                            // Flush every 10
+                            if (count >= 10)
+                            {
+                                FlushBatch(batch, token);
+                                batch.Clear();
+                                count = 0;
                             }
                         }
+
+                        // Flush leftovers
+                        if (batch.Count > 0)
+                        {
+                            FlushBatch(batch, token);
+                        }
+
                     }, token);
                 }
             }
             catch (Exception ex) { Console.WriteLine(ex.Message); }
         }
 
+        private void FlushBatch(List<string> batch, CancellationToken token)
+        {
+            if (token.IsCancellationRequested) return;
 
+            string html = string.Join(Environment.NewLine, batch);
 
-
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                string js = $@"
+var container = document.getElementById('results');
+container.insertAdjacentHTML('beforeend', `{html}`);";
+                WebView.ExecuteScriptAsync(js);
+            });
+        }
         private void DebugButton_Click(object sender, RoutedEventArgs e)
         {
            
