@@ -111,11 +111,13 @@
     <Compile Include="Helpers\MyBinaryWriter.cs" />
     <Compile Include="Helpers\MyBinaryReader.cs" />
     <Compile Include="Helpers\TextExtractor.cs" />
-    <Compile Include="IndexSearch\SearchResult.cs" />
     <Compile Include="IndexSearch\SearchIndex.cs" />
+    <Compile Include="IndexSearch\SearchResult.cs" />
+    <Compile Include="IndexSearch\SearchIndex - new.cs" />
     <Compile Include="IndexSearch\SnippetBuilder.cs" />
     <Compile Include="Index\IndexMerger.cs" />
     <Compile Include="Index\IndexReader.cs" />
+    <Compile Include="Index\TokenReader.cs" />
     <Compile Include="Index\WAL.cs" />
     <Compile Include="Index\WordsStore.cs" />
     <Compile Include="Index\DocIdStore.cs" />

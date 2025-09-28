@@ -60,7 +60,7 @@ namespace IndexerLib.Tokens
             }
         }
 
-        static Token DeserializeToken(MyBinaryReader reader)
+        public static Token DeserializeToken(MyBinaryReader reader)
         {
             try
             {

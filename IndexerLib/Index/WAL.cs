@@ -12,27 +12,37 @@ using IndexerLib.IndexManger;
 namespace IndexerLib.Index
 {
     /// <summary>
-    /// WAL (Write-Ahead Log) implementation.
-    /// Buffers token writes in memory and flushes them to disk when threshold is reached.
-    /// Uses background merging of flushed index files.
+    /// Write-Ahead Log (WAL) implementation.
+    /// Buffers token writes in memory and periodically flushes them to disk.
+    /// Supports background merging of flushed index segments.
     /// </summary>
     public class WAL : IDisposable
     {
         // In-memory log buffer (key = token string, value = serialized token bytes)
         private readonly ConcurrentQueue<KeyValuePair<string, byte[]>> _logQueue = new ConcurrentQueue<KeyValuePair<string, byte[]>>();
-        int _threshHold;         // Threshold for when to flush (based on memory availability)
+
+        // Threshold for flushing data to disk (calculated dynamically from available memory)
+        int _threshHold;
+
+        // Countdown until next merge operation (merges after every 25 flushes)
         short mergeCountdown = 25;
 
         /// <summary>
-        /// Initializes WAL with dynamic flush threshold based on available memory.
+        /// Initializes a new WAL instance with a dynamic flush threshold
+        /// based on available system memory.
         /// </summary>
+        /// <param name="memoryUsagePercent">
+        /// Percentage of available memory to target for WAL buffer usage.
+        /// Default is 10%.
+        /// </param>
         public WAL(float memoryUsagePercent = 10)
         {
             _threshHold = CalculateDynamicThreshold(memoryUsagePercent);
         }
 
         /// <summary>
-        /// Dynamically calculates flush threshold based on system memory availability.
+        /// Calculates a dynamic flush threshold based on system memory availability.
+        /// Falls back to a fixed threshold if system counters are unavailable.
         /// </summary>
         private int CalculateDynamicThreshold(float percent)
         {
@@ -42,20 +52,20 @@ namespace IndexerLib.Index
                 {
                     float availableMb = pc.NextValue();
                     float targetUsageMb = availableMb * (percent / 100f);
-                    return (int)(targetUsageMb * 1_000); // Convert MB to approx. entries
+                    return (int)(targetUsageMb * 1_000); // Approximate entries per MB
                 }
             }
             catch (Exception ex)
             {
-                // If performance counters fail, fall back to a fixed threshold
+                // If performance counter fails, fallback to a safe static threshold
                 Console.WriteLine($"Failed to calculate threshold: {ex.Message}");
-                return 1_000_000; // fallback = 1M entries
+                return 1_000_000; // default = 1M entries
             }
         }
 
         /// <summary>
-        /// Logs a token into the WAL (enqueues in memory).
-        /// Flushes to disk if buffer exceeds threshold.
+        /// Enqueues a token for writing.
+        /// Triggers a flush when the in-memory buffer exceeds the threshold.
         /// </summary>
         public void Log(string key, Token token)
         {
@@ -68,13 +78,14 @@ namespace IndexerLib.Index
 
         /// <summary>
         /// Flushes all buffered tokens to disk.
-        /// Groups by key, writes combined data, and enqueues file for merge.
+        /// Groups tokens by key, writes combined data to a new index file,
+        /// and schedules a background merge when needed.
         /// </summary>
         public void Flush()
         {
             var groupedData = new Dictionary<string, List<byte[]>>();
 
-            // Dequeue all items and group by key
+            // Drain queue and group entries by key
             while (_logQueue.TryDequeue(out var item))
             {
                 if (!groupedData.ContainsKey(item.Key))
@@ -94,8 +105,7 @@ namespace IndexerLib.Index
             // Progress reporting every second
             System.Timers.Timer progressTimer = new System.Timers.Timer(1000);
             progressTimer.Elapsed += (sender, e) =>
-                Console.WriteLine("Flushing: " + flushIndex + "\\" + flushCount);
-
+                Console.WriteLine($"Flushing: {flushIndex}\\{flushCount}");
             progressTimer.Start();
 
             string indexPath;
@@ -110,13 +120,13 @@ namespace IndexerLib.Index
                 indexPath = writer.TokenStorePath;
             }
 
-            // Cleanup
+            // Cleanup resources
             progressTimer.Stop();
             progressTimer.Dispose();
 
             GC.Collect();
             GC.WaitForPendingFinalizers();
-            Console.WriteLine("Flush done");
+            Console.WriteLine("Flush complete");
 
             mergeCountdown--;
             if (mergeCountdown == 0)
@@ -124,11 +134,10 @@ namespace IndexerLib.Index
                 IndexMerger.Merge();
                 mergeCountdown = 25;
             }
-
         }
 
         /// <summary>
-        /// Ensures flush + merge before disposal.
+        /// Ensures any pending data is flushed and merged before disposal.
         /// </summary>
         public void Dispose()
         {

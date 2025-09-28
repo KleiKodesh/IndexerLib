@@ -1,23 +1,27 @@
-﻿using IndexerLib.Helpers;
-using IndexerLib.Index;
-using IndexerLib.Tokens;
+﻿using SimplifiedIndexerLib.Helpers;
+using SimplifiedIndexerLib.Index;
+using SimplifiedIndexerLib.Tokens;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Security;
+using System.Reflection.Emit;
+using System.Runtime.Remoting.Messaging;
 using System.Text;
 
-namespace IndexerLib.Index
+namespace SimplifiedIndexerLib.Index
 {
     public static class IndexMerger
     {
-        public static string Merge()
+        public static void Merge()
         {
             var startTime = DateTime.Now;
             Console.WriteLine($"Merge Start: {startTime}");
 
             var files = new IndexerBase().TokenStoreFileList();
+            if (files.Count <= 1)
+                return;
 
             string writerPath;
             using (var writer = new IndexWriter("merged"))
@@ -27,9 +31,6 @@ namespace IndexerLib.Index
 
                 foreach (var file in files)
                 {
-                    if (file == writer.TokenStorePath)
-                        continue;
-
                     var newReader = new IndexReader(file);
                     if (newReader.Enumerator.MoveNext())
                         indexReaders.Add(newReader);
@@ -47,8 +48,7 @@ namespace IndexerLib.Index
             }
 
             var timeNow = DateTime.Now;
-            Console.WriteLine($"Merge Ended: {timeNow} Total: {startTime - timeNow}");
-            return writerPath;
+            Console.WriteLine($"Merge Ended: {timeNow} Total: {timeNow - startTime}");
         }
 
         static void ReadAndMerge(List<IndexReader> indexReaders, IndexWriter writer)
@@ -63,7 +63,8 @@ namespace IndexerLib.Index
                     activeReaders.Add(reader);
             }
 
-            while (activeReaders.Count > 0)
+            using (var spinner = new ConsoleSpinner())
+                while (activeReaders.Count > 0)
             {
                 // Find the smallest hash
                 var minEntry = activeReaders
@@ -78,9 +79,9 @@ namespace IndexerLib.Index
                    .Where(e => comparer.Compare(e.Enumerator.Current.Hash, currentHash) == 0)
                    .ToList();
 
-                // Merge and write the block
+                //// Merge and write the block
                 var merged = MergeBlocks(matches.Select(m => m));
-                writer.Put(merged, currentHash);
+                writer.Put(currentHash, merged);
 
                 // Advance all matched enumerators and remove finished ones
                 var stillActive = new List<IndexReader>();
@@ -109,7 +110,7 @@ namespace IndexerLib.Index
             foreach (var reader in indexReaders)
             {
                 var key = reader.Enumerator.Current;
-                var block = reader.ReadBlock(key);
+                var block = reader.ReadBlock(key.Offset, key.Length);
                 if (block == null) continue;
 
                 using (var ms = new MemoryStream(block))
@@ -120,7 +121,7 @@ namespace IndexerLib.Index
                         var startPos = ms.Position;
                         var tokenId = bReader.Read7BitEncodedInt();
                         int count = bReader.Read7BitEncodedInt();
-                        for (int i = 0; i < count * 3; i++)
+                        for (int i = 0; i < count; i++)
                             bReader.Read7BitEncodedInt();
 
                         var length = ms.Position - startPos;
@@ -145,5 +146,30 @@ namespace IndexerLib.Index
 
             return result;
         }
+
+//❌ Produces duplicates if the same token exists across blocks.
+//❌ No sorting, no normalization — order is whatever the readers produce.
+//❌ Impossible to resolve conflicts between tokens without re-parsing.
+//❌ Less flexible if later you want smarter merging logic.
+        //static byte[] MergeBlocks(IEnumerable<IndexReader> indexReaders)
+        //{
+        //    using (var ms = new MemoryStream())
+        //    {
+        //        foreach (var reader in indexReaders)
+        //        {
+        //            var indexKey = reader.Enumerator.Current;
+        //            if (indexKey == null || indexKey.Length <= 0)
+        //                continue;
+
+        //            var blockData = reader.ReadBlock(indexKey.Offset, indexKey.Length);
+        //            if (blockData != null && blockData.Length > 0)
+        //                ms.Write(blockData, 0, blockData.Length);
+        //        }
+
+        //        return ms.ToArray();
+        //    }
+        //}
+
+
     }
 }

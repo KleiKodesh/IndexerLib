@@ -1,16 +1,15 @@
-﻿using IndexerLib.Helpers;
-using IndexerLib.Index;
-using IndexerLib.IndexManger;
-using IndexerLib.IndexSearch;
-using IndexerLib.Sample;
-using Microsoft.WindowsAPICodePack.Dialogs;
+﻿using Microsoft.WindowsAPICodePack.Dialogs;
+using MS.WindowsAPICodePack.Internal;
+using SimplifiedIndexerLib.Index;
+using SimplifiedIndexerLib.IndexManger;
+using SimplifiedIndexerLib.IndexSearch;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -50,21 +49,20 @@ namespace IndexerTest
                 if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
                 {
                     string directory = dialog.FileName;
-                    IndexManager.CreateIndex(directory, new string[] { ".txt", ".pdf" }, MemoryUsageBox.Value);
+                    IndexCreator.Execute(directory, new string[] { ".txt", ".pdf" }, MemoryUsageBox.Value);
                 }
             }
-            catch (Exception ex) {Console.WriteLine(ex.Message); }
+            catch (Exception ex) { Console.WriteLine(ex.Message); }
         }
 
 
         // change idea to virtualiztion one day for now just limit results to 20000
         public async void Search()
         {
-            // Cancel any previous search
-            cts.Cancel();
+            cts?.Cancel();
+            cts?.Dispose();
             cts = new CancellationTokenSource();
             var token = cts.Token;
-            int counter = 0;
 
             try
             {
@@ -72,56 +70,74 @@ namespace IndexerTest
                 short adjacency = (short)AdjacencySettingsBox.Value;
 
                 string htmlStyle = "font-family:Segoe UI; direction:rtl;";
-                string initialHtml = $"<html><body style='{htmlStyle}' id='results'></body></html>";
-                WebView.NavigateToString(initialHtml);
+                WebView.NavigateToString($"<html><body style='{htmlStyle}' id='results'></body></html>");
 
-                await Task.Run(async () =>
+                using (var docIdStore = new DocIdStore())
                 {
-                    using (var docIdStore = new DocIdStore())
+                    await Task.Run(() =>
                     {
-                        foreach (var result in SearchIndex.Execute(query, adjacency))
+                        var results = SearchIndex.Execute(query, adjacency);
+
+                        foreach (var result in results)
                         {
-                            if (counter++ > 2000) return;
-                            token.ThrowIfCancellationRequested(); // ✅ will stop immediately
+                            SnippetBuilder.GenerateSnippets(result, docIdStore);
 
-                            SnippetBuilder.GenerateSnippet(result, docIdStore);
-
-                            string snippetHtml = $@"
-                        <div style='margin-bottom:12px;'>
-                            <b>Document {result.DocId}</b><br/>
-                            <small style='color:gray;'>{Path.GetFileName(result.DocPath)}</small><br/>
-                            {result.Snippet}<br/>
-                        </div>";
-
-                            await Application.Current.Dispatcher.InvokeAsync(async () =>
+                            var sb = new StringBuilder();
+                            foreach (var snippet in result.Snippets)
                             {
-                                string js = $@"
-                            var container = document.getElementById('results');
-                            container.insertAdjacentHTML('beforeend', `{snippetHtml}`);
-                        ";
-                                await WebView.ExecuteScriptAsync(js);
-                            }, System.Windows.Threading.DispatcherPriority.Background, token); // ✅ pass token
-                        }
-                    }
-                }, token); // ✅ pass token to Task.Run
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected when a new search starts before previous finishes — ignore
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
-        }
+                                if (token.IsCancellationRequested)
+                                    return;
 
+                                sb.AppendLine($@"
+<div style='margin-bottom:12px;'>
+   <b>Document {result.DocId}</b><br/>
+   <small style='color:gray;'>{Path.GetFileName(result.DocPath)}</small><br/>
+   {snippet}<br/>
+</div>");
+                            }
+
+                            if (sb.Length > 0)
+                            {
+                                Application.Current.Dispatcher.Invoke(() =>
+                                {
+                                    string js = $@"
+var container = document.getElementById('results');
+container.insertAdjacentHTML('beforeend', `{sb}`);";
+                                    WebView.ExecuteScriptAsync(js);
+                                });
+                            }
+                        }
+                    }, token);
+                }
+            }
+            catch (Exception ex) { Console.WriteLine(ex.Message); }
+        }
 
 
 
         private void DebugButton_Click(object sender, RoutedEventArgs e)
         {
-            WordsStore.SortWordsByIndex();
+            using (var reader = new IndexReader())
+            {
+                var tokens = reader.GetAllTokens().ToList();
+
+                var json = System.Text.Json.JsonSerializer.Serialize(
+                    tokens,
+                    new System.Text.Json.JsonSerializerOptions
+                    {
+                        WriteIndented = true, // pretty-print with newlines
+                        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping // show Unicode directly
+                    });
+
+                // Build the path to a temp file on the desktop
+                string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                string tempFilePath = Path.Combine(desktopPath, "tokens_temp.json");
+
+                // Write the JSON to the file
+                File.WriteAllText(tempFilePath, json);
+            }
         }
+
 
         void TokenizerTest()
         {
@@ -137,16 +153,19 @@ namespace IndexerTest
             string text = System.IO.File.ReadAllText(filePath);
 
             // Tokenize
-            var tokensDict = IndexerLib.Tokens.RegexTokenizer.Tokenize(text, filePath);
-            var tokens = new List<string>(tokensDict.Keys);
+            var tokensDict = SimplifiedIndexerLib.Tokens.RegexTokenizer.Tokenize(text, filePath);
 
             // Build HTML list
             var sb = new StringBuilder();
             sb.AppendLine("<html><body style='font-family:Segoe UI; direction:rtl;'>");
             sb.AppendLine("<h3>Tokens:</h3>");
             sb.AppendLine("<ul>");
-            foreach (var token in tokens)
-                sb.AppendLine($"<li>{WebUtility.HtmlEncode(token)}</li>");
+            foreach (var token in tokensDict)
+            {
+                foreach (var pos in token.Value.Postions)
+                    sb.AppendLine($"<li>{pos + ", " + WebUtility.HtmlEncode(token.Key)}</li>");
+            }
+
             sb.AppendLine("</ul>");
             sb.AppendLine("</body></html>");
 

@@ -1,0 +1,104 @@
+﻿using SimplifiedIndexerLib.IndexManger;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Runtime.InteropServices.ComTypes;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace SimplifiedIndexerLib.Index
+{
+    public class IndexWriter : IndexerBase, IDisposable
+    {
+        protected readonly FileStream _dataStream;
+        protected readonly FileStream _indexKeyStream;
+        protected readonly BinaryWriter _dataWriter;
+        protected readonly BinaryWriter _indexKeyWriter;
+        protected readonly string _tempIndexPath;
+        protected readonly SHA256 _sha256;
+
+        protected long currentOffset = 0; // instead of intf
+        protected List<string> _words;
+
+        public IndexWriter(string name = "")
+        {
+            if (!string.IsNullOrEmpty(name))
+                TokenStorePath = Path.Combine(IndexDirectoryPath, name + ".tks");
+
+            EnsureUniqueTokenStorePath();
+            _tempIndexPath = TokenStorePath + ".tmp";
+
+            _dataStream = new FileStream(TokenStorePath, FileMode.OpenOrCreate, FileAccess.Write,
+                FileShare.None, bufferSize: 81920, FileOptions.SequentialScan);
+            _indexKeyStream = new FileStream(_tempIndexPath, FileMode.OpenOrCreate, FileAccess.Write,
+                FileShare.None, bufferSize: 81920, FileOptions.SequentialScan);
+
+            _dataWriter = new BinaryWriter(_dataStream, Encoding.UTF8, leaveOpen: true);
+            _indexKeyWriter = new BinaryWriter(_indexKeyStream, Encoding.UTF8, leaveOpen: true);
+
+            _sha256 = SHA256.Create();
+            _words = new List<string>();
+        }
+
+        public virtual void Put(string key, Stream stream)
+        {
+            if (stream == null || stream.Length == 0) return;
+
+            if (stream.CanSeek) stream.Position = 0;
+            stream.CopyTo(_dataWriter.BaseStream, bufferSize: 81920);
+
+            var hash = _sha256.ComputeHash(Encoding.UTF8.GetBytes(key.Normalize(NormalizationForm.FormC)));
+
+            // write index key
+            _indexKeyWriter.Write(hash);
+            _indexKeyWriter.Write(currentOffset);
+            _indexKeyWriter.Write((int)stream.Length);
+
+            checked { currentOffset += stream.Length; }
+            _words.Add(key);
+        }
+
+        public void Put(byte[] hash, byte[] data)
+        {
+            if (hash == null || data == null)
+                return;
+
+            _dataWriter.Write(data, 0, data.Length);
+
+            // write index key
+            _indexKeyWriter.Write(hash);
+            _indexKeyWriter.Write(currentOffset);
+            _indexKeyWriter.Write(data.Length);
+
+            checked { currentOffset += data.Length; }
+        }
+
+        public void Dispose()
+        {
+            _sha256.Dispose();
+
+            _indexKeyWriter.Flush();
+            _indexKeyWriter.Dispose();
+            _indexKeyStream.Dispose();
+
+            using (var tempIndexStream = new FileStream(_tempIndexPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                tempIndexStream.CopyTo(_dataStream);
+
+                // Build footer: high 16 bits = magic marker, low 48 bits = index length
+                ulong footer = ((ulong)MagicMarker << 48) | (ulong)tempIndexStream.Length;
+                _dataWriter.Write(footer);
+            }
+
+            if (File.Exists(_tempIndexPath))
+                File.Delete(_tempIndexPath);
+
+            _dataWriter.Flush();
+            _dataWriter.Dispose();
+            _dataStream.Dispose();
+
+            if (_words.Count > 0)
+                WordsStore.AddWords(_words);
+        }
+    }
+}
