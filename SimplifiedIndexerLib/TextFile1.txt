@@ -1,2 +1,5 @@
 ﻿add code to take care of fractured index and delete or merge keys if neccary
 - look into tries for storing the index keys in memory
+- filter by doc by first getting shortest list
+- compact tokenlists into one mega token not bycompacting tokens but rsather by reading them all as one long token but then will need to dort positions yet this can be done at snippet time
+- create pdf text store

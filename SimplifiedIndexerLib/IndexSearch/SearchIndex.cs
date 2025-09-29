@@ -23,8 +23,8 @@ namespace SimplifiedIndexerLib.IndexSearch
             Console.WriteLine("Querying index..." + DateTime.Now);
             //var tokenLists = GetTokenLists(wordLists);
             List<List<Token>> tokenLists;
-            using (var reader = new IndexReader())
-                tokenLists = reader.GetTokenListsByIndex(wordLists);
+            using (var reader = new TokenListReader())
+                tokenLists = reader.GetByIndex(wordLists);
 
             Console.WriteLine("Grouping by doc..." + DateTime.Now);
             var validDocs = GroupAndFilterByDocId(tokenLists);

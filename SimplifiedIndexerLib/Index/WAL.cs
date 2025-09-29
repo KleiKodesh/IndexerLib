@@ -1,9 +1,7 @@
 ﻿using SimplifiedIndexerLib.Helpers;
-using SimplifiedIndexerLib.Index;
 using SimplifiedIndexerLib.Tokens;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;

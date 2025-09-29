@@ -25,7 +25,7 @@ namespace SimplifiedIndexerLib.Index
                 var indexReaders = new List<IndexReader>();
 
                 foreach (var file in files)
-                        indexReaders.Add(new IndexReader(file));
+                    indexReaders.Add(new IndexReader(file));
 
                 ReadAndMerge(indexReaders, writer);
 
@@ -56,42 +56,41 @@ namespace SimplifiedIndexerLib.Index
 
             using (var spinner = new ConsoleSpinner())
                 while (activeReaders.Count > 0)
-            {
-                // Find the smallest hash
-                var minEntry = activeReaders
-                    .Where(e => e.Enumerator.Current != null)
-                    .OrderBy(e => e.Enumerator.Current.Hash, comparer)
-                    .First();
+                {
+                    // Find the smallest hash
+                    var minEntry = activeReaders
+                        .Where(e => e.Enumerator.Current != null)
+                        .OrderBy(e => e.Enumerator.Current.Hash, comparer)
+                        .First();
 
-                var currentHash = minEntry.Enumerator.Current.Hash;
+                    var currentHash = minEntry.Enumerator.Current.Hash;
 
                     // Collect all readers with the same hash
-                    var matches = activeReaders
-                   .Where(e => comparer.Compare(e.Enumerator.Current.Hash, currentHash) == 0)
-                   .ToList();
+                    var matches = activeReaders.Where(e => comparer.Compare(e.Enumerator.Current.Hash, currentHash) == 0).
+                        OrderBy(m => m.TokenStorePath);
 
-                //// Merge and write the block
-                var merged = MergeBlocks(matches.Select(m => m));
-                writer.Put(currentHash, merged);
+                    //// Merge and write the block
+                    var merged = MergeBlocks(matches);
+                    writer.Put(currentHash, merged);
 
-                // Advance all matched enumerators and remove finished ones
-                var stillActive = new List<IndexReader>();
+                    // Advance all matched enumerators and remove finished ones
+                    var stillActive = new List<IndexReader>();
 
-                foreach (var reader in activeReaders)
-                {
-                    if (comparer.Compare(reader.Enumerator.Current.Hash, currentHash) == 0)
+                    foreach (var reader in activeReaders)
                     {
-                        if (reader.Enumerator.MoveNext())
+                        if (comparer.Compare(reader.Enumerator.Current.Hash, currentHash) == 0)
+                        {
+                            if (reader.Enumerator.MoveNext())
+                                stillActive.Add(reader);
+                        }
+                        else
+                        {
                             stillActive.Add(reader);
+                        }
                     }
-                    else
-                    {
-                        stillActive.Add(reader);
-                    }
-                }
 
-                activeReaders = stillActive;
-            }
+                    activeReaders = stillActive;
+                }
         }
 
         static byte[] MergeBlocks(IEnumerable<IndexReader> indexReaders)

@@ -1,25 +1,21 @@
-﻿
-using SimplifiedIndexerLib.Tokens;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
 using System.Text;
-using System.Linq;
 
 namespace SimplifiedIndexerLib.Index
 {
     public class IndexReader : IndexerBase, IDisposable
     {
-        private readonly FileStream _indexStream;   // used only for index traversal
-        private readonly BinaryReader _indexReader;
+        protected readonly FileStream _indexStream;   // used only for index traversal
+        protected readonly BinaryReader _indexReader;
 
-        private readonly FileStream _dataStream;    // used only for block reads
+        protected readonly FileStream _dataStream;    // used only for block reads
 
-        private readonly long _indexStart;
-        private readonly long _indexLength;
+        protected readonly long _indexStart;
+        protected readonly long _indexLength;
 
-        private const int RecordSize = 32 + sizeof(long) + sizeof(int);
+        protected const int RecordSize = 32 + sizeof(long) + sizeof(int);
         // 32 bytes hash + 8 bytes offset + 4 bytes length = 44 bytes per record
 
         private IEnumerator<IndexKey> _enumerator;
@@ -42,12 +38,12 @@ namespace SimplifiedIndexerLib.Index
 
             // one stream for reading index records
             _indexStream = new FileStream(TokenStorePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-                bufferSize: 81920, FileOptions.RandomAccess);
+                bufferSize: 81920);
             _indexReader = new BinaryReader(_indexStream, Encoding.UTF8, leaveOpen: true);
 
             // separate stream for block data
             _dataStream = new FileStream(TokenStorePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-                bufferSize: 81920, FileOptions.RandomAccess);
+                bufferSize: 81920);
 
             (_indexStart, _indexLength) = LocateIndex();
         }
@@ -109,68 +105,6 @@ namespace SimplifiedIndexerLib.Index
 
                 yield return new IndexKey(_indexReader);
             }
-        }
-
-
-        public List<List<Token>> GetTokenListsByIndex(List<List<int>> indexLists)
-        {
-            var tokenLists = new List<List<Token>>(indexLists.Count);
-            for (int i = 0; i < indexLists.Count; i++)
-                tokenLists.Add(new List<Token>());
-
-            // Step 1: Flatten requests and track which lists need each pos
-            var requestMap = new Dictionary<int, List<int>>();
-            for (int listIdx = 0; listIdx < indexLists.Count; listIdx++)
-            {
-                foreach (var pos in indexLists[listIdx])
-                {
-                    if (!requestMap.TryGetValue(pos, out var lists))
-                    {
-                        lists = new List<int>();
-                        requestMap[pos] = lists;
-                    }
-                    lists.Add(listIdx);
-                }
-            }
-
-            if (requestMap.Count == 0)
-                return tokenLists;
-
-            // Step 2: Sort positions for sequential index table reads
-            var positions = requestMap.Keys.OrderBy(p => p).ToList();
-
-            var blocks = new List<(long offset, int length, List<int> lists)>(positions.Count);
-
-            // Step 3: Sequentially read index table entries
-            foreach (var pos in positions)
-            {
-                long entryOffset = _indexStart + (pos * RecordSize);
-                if (entryOffset + RecordSize > _indexStart + _indexLength)
-                    continue; // or throw
-
-                _indexStream.Seek(entryOffset + 32, SeekOrigin.Begin); // skip hash
-                long dataOffset = _indexReader.ReadInt64();
-                int dataLength = _indexReader.ReadInt32();
-
-                blocks.Add((dataOffset, dataLength, requestMap[pos]));
-            }
-
-            // Step 4: Sort by data offset for sequential data reads
-            blocks.Sort((a, b) => a.offset.CompareTo(b.offset));
-
-            // Step 5: Read blocks sequentially and distribute results
-            foreach (var (offset, length, lists) in blocks)
-            {
-                var data = ReadBlock(offset, length);
-                if (data != null)
-                {
-                    var tokenGroup = Serializer.DeserializeTokenGroup(data);
-                    foreach (var listIdx in lists)
-                        tokenLists[listIdx].AddRange(tokenGroup);
-                }
-            }
-
-            return tokenLists;
         }
 
 

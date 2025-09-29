@@ -72,6 +72,7 @@
     <Compile Include="Index\IndexMerger.cs" />
     <Compile Include="Index\IndexReader.cs" />
     <Compile Include="Index\IndexWriter.cs" />
+    <Compile Include="Index\TokenListReader.cs" />
     <Compile Include="Index\WAL.cs" />
     <Compile Include="Index\WordsStore.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
