@@ -7,8 +7,9 @@ namespace SimplifiedIndexerLib.Tokens
 {
     public static class RegexTokenizer
     {
-        static readonly Regex WordRegex = new Regex(@"(?:[\p{L}\p{M}\p{Nd}_]+(?:<[^>]+>[\p{L}\p{M}\p{Nd}_]+)*)", RegexOptions.Compiled);
-        private static readonly Regex CleanWordRegex = new Regex(@"(<.*?>)|\p{M}+", RegexOptions.Compiled);
+        // word regex exclude digits with support for either HTML tags or a literal " in the middle of a word.
+        static readonly Regex WordRegex = new Regex(@"(?:[\p{L}\p{M}_]+(?:(?:(?:<[^>]+>)|"")[\p{L}\p{M}_]+)*)", RegexOptions.Compiled);
+        private static readonly Regex CleanWordRegex = new Regex(@"(?:<.*?>)|[\p{M}""]+", RegexOptions.Compiled);
 
         /// <summary>
         /// Returns only valid raw matches from the text.

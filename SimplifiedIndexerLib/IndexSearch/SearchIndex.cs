@@ -22,7 +22,9 @@ namespace SimplifiedIndexerLib.IndexSearch
 
             Console.WriteLine("Querying index..." + DateTime.Now);
             //var tokenLists = GetTokenLists(wordLists);
-            var tokenLists = GetTokenListsByPos(wordLists);
+            List<List<Token>> tokenLists;
+            using (var reader = new IndexReader())
+                tokenLists = reader.GetTokenListsByIndex(wordLists);
 
             Console.WriteLine("Grouping by doc..." + DateTime.Now);
             var validDocs = GroupAndFilterByDocId(tokenLists);
@@ -32,35 +34,6 @@ namespace SimplifiedIndexerLib.IndexSearch
 
             Console.WriteLine("Search complete. Elapsed: " + (DateTime.Now - startTime));
             return results;
-        }
-
-
-        //faster method using premapped index keys by comparing them to wordstore
-        static List<List<Token>> GetTokenListsByPos(List<List<int>> posLists)
-        {
-            var tokenLists = new List<List<Token>>(posLists.Count);
-            for (int i = 0; i < posLists.Count; i++)
-                tokenLists.Add(new List<Token>());
-
-            using (var reader = new IndexReader())
-            {
-                for (int x = 0; x < posLists.Count; x++)
-                {
-                    foreach (var pos in posLists[x])
-                    {
-                        //Console.WriteLine(DateTime.Now);
-                        var data = reader.GetDataByIndex(pos);
-                        //Console.WriteLine(DateTime.Now);
-                        if (data != null)
-                        {
-                            var tokenGroup = Serializer.DeserializeTokenGroup(data);
-                            tokenLists[x].AddRange(tokenGroup);
-                        }
-                        //Console.WriteLine(DateTime.Now);
-                    }
-                }
-            }
-            return tokenLists;
         }
 
         //supposed to filter docs that dont have a count of token lists simililar to original token lists

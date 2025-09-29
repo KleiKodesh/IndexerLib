@@ -111,20 +111,83 @@ namespace SimplifiedIndexerLib.Index
             }
         }
 
-        public IEnumerable<KeyValuePair<string, List<Token>>> GetAllTokens()
+
+        public List<List<Token>> GetTokenListsByIndex(List<List<int>> indexLists)
         {
-            int recordCount = (int)_indexLength / RecordSize;
+            var tokenLists = new List<List<Token>>(indexLists.Count);
+            for (int i = 0; i < indexLists.Count; i++)
+                tokenLists.Add(new List<Token>());
 
-            var words = WordsStore.GetWords().ToList();
-
-            for (int i = 0; i < recordCount; i++)
+            // Step 1: Flatten requests and track which lists need each pos
+            var requestMap = new Dictionary<int, List<int>>();
+            for (int listIdx = 0; listIdx < indexLists.Count; listIdx++)
             {
-                var data = GetDataByIndex(i);
-                var tokens = Serializer.DeserializeTokenGroup(data);
-
-                yield return new KeyValuePair<string, List<Token>>(words[i], tokens);
+                foreach (var pos in indexLists[listIdx])
+                {
+                    if (!requestMap.TryGetValue(pos, out var lists))
+                    {
+                        lists = new List<int>();
+                        requestMap[pos] = lists;
+                    }
+                    lists.Add(listIdx);
+                }
             }
+
+            if (requestMap.Count == 0)
+                return tokenLists;
+
+            // Step 2: Sort positions for sequential index table reads
+            var positions = requestMap.Keys.OrderBy(p => p).ToList();
+
+            var blocks = new List<(long offset, int length, List<int> lists)>(positions.Count);
+
+            // Step 3: Sequentially read index table entries
+            foreach (var pos in positions)
+            {
+                long entryOffset = _indexStart + (pos * RecordSize);
+                if (entryOffset + RecordSize > _indexStart + _indexLength)
+                    continue; // or throw
+
+                _indexStream.Seek(entryOffset + 32, SeekOrigin.Begin); // skip hash
+                long dataOffset = _indexReader.ReadInt64();
+                int dataLength = _indexReader.ReadInt32();
+
+                blocks.Add((dataOffset, dataLength, requestMap[pos]));
+            }
+
+            // Step 4: Sort by data offset for sequential data reads
+            blocks.Sort((a, b) => a.offset.CompareTo(b.offset));
+
+            // Step 5: Read blocks sequentially and distribute results
+            foreach (var (offset, length, lists) in blocks)
+            {
+                var data = ReadBlock(offset, length);
+                if (data != null)
+                {
+                    var tokenGroup = Serializer.DeserializeTokenGroup(data);
+                    foreach (var listIdx in lists)
+                        tokenLists[listIdx].AddRange(tokenGroup);
+                }
+            }
+
+            return tokenLists;
         }
+
+
+        //public IEnumerable<KeyValuePair<string, List<Token>>> GetAllTokens()
+        //{
+        //    int recordCount = (int)_indexLength / RecordSize;
+
+        //    var words = WordsStore.GetWords().ToList();
+
+        //    for (int i = 0; i < recordCount; i++)
+        //    {
+        //        var data = GetDataByIndex(i);
+        //        var tokens = Serializer.DeserializeTokenGroup(data);
+
+        //        yield return new KeyValuePair<string, List<Token>>(words[i], tokens);
+        //    }
+        //}
 
         public void Dispose()
         {

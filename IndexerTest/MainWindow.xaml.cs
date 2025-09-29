@@ -104,7 +104,7 @@ namespace IndexerTest
                             }
 
                             // Flush every 10
-                            if (count >= 10)
+                            if (count >= 1)
                             {
                                 FlushBatch(batch, token);
                                 batch.Clear();
