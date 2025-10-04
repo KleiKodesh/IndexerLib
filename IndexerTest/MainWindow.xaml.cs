@@ -75,6 +75,7 @@ namespace IndexerTest
                     await Task.Run(() =>
                     {
                         var results = SearchIndex.Execute(query, adjacency);
+                        //Console.WriteLine(DateTime.Now);
 
                         var batch = new List<string>();
                         int count = 0;
@@ -104,7 +105,7 @@ namespace IndexerTest
                             }
 
                             // Flush every 10
-                            if (count >= 1)
+                            if (count >= 10)
                             {
                                 FlushBatch(batch, token);
                                 batch.Clear();
@@ -138,6 +139,8 @@ container.insertAdjacentHTML('beforeend', `{html}`);";
                 WebView.ExecuteScriptAsync(js);
             });
         }
+
+
         private void DebugButton_Click(object sender, RoutedEventArgs e)
         {
            

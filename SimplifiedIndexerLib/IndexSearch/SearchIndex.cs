@@ -36,59 +36,77 @@ namespace SimplifiedIndexerLib.IndexSearch
             return results;
         }
 
-        //supposed to filter docs that dont have a count of token lists simililar to original token lists
         static Dictionary<int, List<Token>> GroupAndFilterByDocId(List<List<Token>> tokenLists)
         {
-            var result = new Dictionary<int, List<Token>>();
-            short counter = 0;
+            if (tokenLists == null || tokenLists.Count == 0)
+                return new Dictionary<int, List<Token>>();
 
-            foreach (var tokenList in tokenLists)
+            int requiredCount = tokenLists.Count;
+            var result = new Dictionary<int, List<Token>>(4096);
+            var docTermCount = new Dictionary<int, int>(4096);
+
+            // we’ll reuse one dictionary to avoid reallocation each loop
+            var grouped = new Dictionary<int, List<int>>(4096);
+
+            for (int listIndex = 0; listIndex < tokenLists.Count; listIndex++)
             {
-                var docGroups = tokenList.GroupBy(t => t.DocId);
-                foreach (var docGroup in docGroups)
+                var tokenList = tokenLists[listIndex];
+                if (tokenList == null || tokenList.Count == 0)
+                    return new Dictionary<int, List<Token>>(); // no docs can match if one term has none
+
+                grouped.Clear();
+
+                // merge all tokens with same docId
+                for (int i = 0; i < tokenList.Count; i++)
                 {
-                    var positions = docGroup
-                        .SelectMany(t => t.Postions)
-                        .OrderBy(p => p)
-                        .ToList();
-
-                    if (positions.Count == 0)
-                        continue; // 🚀 skip if no positions for this query term in this doc
-
-                    if (counter == 0)
+                    var t = tokenList[i];
+                    if (!grouped.TryGetValue(t.DocId, out var posList))
                     {
-                        // first term initializes the doc
-                        result[docGroup.Key] = new List<Token>
-                {
-                    new Token { DocId = docGroup.Key, Postions = positions }
-                };
+                        posList = new List<int>();
+                        grouped[t.DocId] = posList;
                     }
-                    else if (result.ContainsKey(docGroup.Key))
+                    // positions may already be sorted; no need to sort unless required
+                    posList.AddRange(t.Postions);
+                }
+
+                // integrate into result
+                foreach (var kv in grouped)
+                {
+                    var docId = kv.Key;
+                    var positions = kv.Value;
+
+                    if (listIndex == 0)
                     {
-                        // only add if doc already has matches for previous terms
-                        result[docGroup.Key].Add(new Token
-                        {
-                            DocId = docGroup.Key,
-                            Postions = positions
-                        });
+                        result[docId] = new List<Token>
+                {
+                    new Token { DocId = docId, Postions = positions }
+                };
+                        docTermCount[docId] = 1;
+                    }
+                    else if (result.TryGetValue(docId, out var existing))
+                    {
+                        existing.Add(new Token { DocId = docId, Postions = positions });
+                        docTermCount[docId]++;
                     }
                 }
-                counter++;
             }
 
-            // final cleanup: ensure doc has matches for *all* query terms
-            var requiredCount = tokenLists.Count;
-            result = result
-                .Where(kvp => kvp.Value.Count == requiredCount)
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            // filter only docs that appear in all terms
+            var final = new Dictionary<int, List<Token>>(docTermCount.Count);
+            foreach (var kv in docTermCount)
+            {
+                if (kv.Value == requiredCount)
+                    final[kv.Key] = result[kv.Key];
+            }
 
-            return result;
+            return final;
         }
+
 
         public static IEnumerable<SearchResult> OrderedAdjacencyMatch(
       Dictionary<int, List<Token>> validDocs, int adjacency)
         {
-            adjacency -= 1; // adjust adjacency (bugfix)
+            adjacency -= 1; // adjust adjacency
 
             foreach (var docEntry in validDocs.OrderBy(kvp => kvp.Key))
             {
@@ -98,55 +116,44 @@ namespace SimplifiedIndexerLib.IndexSearch
                     MatchedPositions = new List<int[]>()
                 };
 
-                // For each doc, get ordered positions for each token
                 var postingsLists = docEntry.Value
                     .Select(t => t.Postions.OrderBy(p => p).ToList())
                     .Where(p => p.Count > 0)
                     .ToList();
 
-                if (postingsLists.Count != docEntry.Value.Count)
-                {
-                    yield return resultForDoc; // empty result for this doc
-                    continue;
-                }
-
-                int i0 = 0;
-                while (i0 < postingsLists[0].Count)
+                var firstList = postingsLists[0];
+                foreach (var startPos in firstList)
                 {
                     var currentMatch = new int[postingsLists.Count];
-                    currentMatch[0] = postingsLists[0][i0];
-                    int prevPos = currentMatch[0];
+                    currentMatch[0] = startPos;
+                    int prevPos = startPos;
 
                     bool valid = true;
                     for (int listIdx = 1; listIdx < postingsLists.Count; listIdx++)
                     {
                         var plist = postingsLists[listIdx];
-                        int j = 0;
 
-                        // find next position greater than prevPos
-                        while (j < plist.Count && plist[j] - prevPos <= 0)
-                            j++;
+                        // Binary search for first element > prevPos
+                        int idx = plist.BinarySearch(prevPos + 1);
+                        if (idx < 0) idx = ~idx; // BinarySearch returns complement if not found
 
-                        if (j >= plist.Count || plist[j] - prevPos > adjacency)
+                        if (idx >= plist.Count || plist[idx] - prevPos > adjacency)
                         {
                             valid = false;
                             break;
                         }
 
-                        currentMatch[listIdx] = plist[j];
-                        prevPos = plist[j];
+                        currentMatch[listIdx] = plist[idx];
+                        prevPos = plist[idx];
                     }
 
                     if (valid)
-                    {
                         resultForDoc.MatchedPositions.Add(currentMatch);
-                    }
-
-                    i0++;
                 }
 
                 yield return resultForDoc;
             }
         }
+
     }
 }

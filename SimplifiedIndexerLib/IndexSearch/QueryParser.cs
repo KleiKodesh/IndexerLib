@@ -2,101 +2,87 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SimplifiedIndexerLib.IndexSearch
 {
     internal class QueryParser
     {
-         // uses an iterator to calcaulte postion of word in index based on its postion in the wordstore
         public static List<List<int>> GenerateWordPositions(string query)
         {
             var splitQuery = query.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            var wordsStore = WordsStore.GetWords();
 
-            // Prepare result structure
-            var result = new List<List<int>>(splitQuery.Length);
-            for (int i = 0; i < splitQuery.Length; i++)
-                result.Add(new List<int>());
+            var words = WordsStore.GetWords().ToList();
+            var result = new List<List<int>>();
 
-            // Iterate with index tracking
-            int position = 0;
-            foreach (var word in wordsStore)
+            foreach (var term in splitQuery)
             {
-                for (int x = 0; x < splitQuery.Length; x++)
+                var positions = new List<int>();
+                if (!term.Contains('*') && !term.Contains('?'))
                 {
-                    if (IsWildcardMatch(splitQuery[x], word))
-                        result[x].Add((position));
+                    // Exact match using Array.IndexOf
+                    int pos = words.IndexOf(term);
+                    while (pos != -1)
+                    {
+                        positions.Add(pos);
+                        pos = words.IndexOf(term, pos + 1);
+                    }
                 }
-                position++;
+                else
+                {
+                    // Wildcard match
+                    for (int i = 0; i < words.Count; i++)
+                    {
+                        if (IsWildcardMatch(term, words[i]))
+                            positions.Add(i);
+                    }
+                }
+                result.Add(positions);
             }
+
 
             return result;
         }
 
         private static bool IsWildcardMatch(string pattern, string input)
         {
-            // Step 0: pre-check length
-            int minLen = 0, maxLen = 0;
-            foreach (var ch in pattern)
+            return MatchHelper(pattern, 0, input, 0);
+        }
+
+        private static bool MatchHelper(string pattern, int pIdx, string input, int sIdx)
+        {
+            while (pIdx < pattern.Length)
             {
-                if (ch == '?')
+                if (pattern[pIdx] == '*')
                 {
-                    minLen++;
-                    maxLen++;
-                }
-                else if (ch == '*')
-                {
-                    maxLen += 5; // * matches 0..5 chars
-                }
-                else
-                {
-                    minLen++;
-                    maxLen++;
-                }
-            }
-
-            if (input.Length < minLen || input.Length > maxLen)
-                return false; // cannot possibly match
-
-            // Step 1: original matching
-            int p = 0, s = 0;
-            int starIdx = -1, match = 0, starCount = 0;
-
-            while (s < input.Length)
-            {
-                if (p < pattern.Length && pattern[p] == input[s])
-                {
-                    p++;
-                    s++;
-                }
-                else if (p < pattern.Length && pattern[p] == '*')
-                {
-                    starIdx = p++;
-                    match = s;
-                    starCount = 0;
-                }
-                else if (p < pattern.Length && pattern[p] == '?')
-                {
-                    p++;
-                }
-                else if (starIdx != -1 && starCount < 5)
-                {
-                    p = starIdx + 1;
-                    s = ++match;
-                    starCount++;
-                }
-                else
-                {
+                    // * matches 0 or more characters
+                    for (int k = sIdx; k <= input.Length; k++)
+                    {
+                        if (MatchHelper(pattern, pIdx + 1, input, k))
+                            return true;
+                    }
                     return false;
                 }
+                else if (pattern[pIdx] == '?')
+                {
+                    // ? matches zero or one character: try both
+                    if (MatchHelper(pattern, pIdx + 1, input, sIdx)) return true; // zero chars
+                    if (sIdx < input.Length && MatchHelper(pattern, pIdx + 1, input, sIdx + 1)) return true; // one char
+                    return false;
+                }
+                else
+                {
+                    // literal match
+                    if (sIdx >= input.Length || pattern[pIdx] != input[sIdx])
+                        return false;
+                    pIdx++;
+                    sIdx++;
+                }
             }
 
-            while (p < pattern.Length && (pattern[p] == '*' || pattern[p] == '?'))
-                p++;
-
-            return p == pattern.Length;
+            // pattern exhausted, input must also be exhausted
+            return sIdx == input.Length;
         }
+
+
     }
 }

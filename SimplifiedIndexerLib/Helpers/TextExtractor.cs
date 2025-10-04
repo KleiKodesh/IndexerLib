@@ -25,11 +25,11 @@ namespace SimplifiedIndexerLib.Helpers
                 try
                 {
                     
-                    using (var docLib = DocLib.Instance)
-                    using (var docReader = docLib.GetDocReader(File.ReadAllBytes(filePath), new PageDimensions()))
-                        for (int i = 0; i < docReader.GetPageCount(); i++)
-                            using (var pageReader = docReader.GetPageReader(i))
-                                stb.Append(pageReader.GetText()); // get text per page
+                    //using (var docLib = DocLib.Instance)
+                    //using (var docReader = docLib.GetDocReader(File.ReadAllBytes(filePath), new PageDimensions()))
+                    //    for (int i = 0; i < docReader.GetPageCount(); i++)
+                    //        using (var pageReader = docReader.GetPageReader(i))
+                    //            stb.Append(pageReader.GetText()); // get text per page
                 }
                 catch 
                 {
