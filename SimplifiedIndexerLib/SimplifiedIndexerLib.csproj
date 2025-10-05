@@ -65,6 +65,7 @@
     <Compile Include="IndexSearch\SearchIndex.cs" />
     <Compile Include="IndexSearch\SearchResult.cs" />
     <Compile Include="IndexSearch\SnippetBuilder.cs" />
+    <Compile Include="IndexSearch\TokenGrouping.cs" />
     <Compile Include="Index\IndexCreator.cs" />
     <Compile Include="Index\DocIdStore.cs" />
     <Compile Include="Index\IndexerBase.cs" />
@@ -79,6 +80,8 @@
     <Compile Include="Tokens\RegexTokenizer.cs" />
     <Compile Include="Tokens\Serializer.cs" />
     <Compile Include="Tokens\Token.cs" />
+    <Compile Include="Tokens\Tokenizer.cs" />
+    <Compile Include="Tokens\TokenStream.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

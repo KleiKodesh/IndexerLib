@@ -12,8 +12,12 @@ namespace SimplifiedIndexerLib.IndexSearch
     {
         public static void GenerateSnippets(SearchResult result, DocIdStore docIdStore, int windowSize = 100)
         {
+            //var start = DateTime.Now;
             result.DocPath = docIdStore.GetPathById(result.DocId);
             string docText = TextExtractor.GetText(result.DocPath);
+
+            //Console.WriteLine($"doc read time: {DateTime.Now - start}");
+            //start = DateTime.Now;
 
             result.Snippets = new List<string>();
 
@@ -22,7 +26,8 @@ namespace SimplifiedIndexerLib.IndexSearch
                 return;
             }
 
-            var tokenStream = RegexTokenizer.TokenStream(docText);
+            var tokenStream = TokenStream.Build(docText);
+            //Console.WriteLine($"token stream time: {DateTime.Now - start}");
 
             foreach (var matchPositions in result.MatchedPositions)
             {

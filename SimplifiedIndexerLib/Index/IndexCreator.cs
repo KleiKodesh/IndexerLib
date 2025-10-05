@@ -38,7 +38,7 @@ namespace SimplifiedIndexerLib.Index
 
                             if (!string.IsNullOrWhiteSpace(content))
                             {
-                                var tokens = RegexTokenizer.Tokenize(content, file);
+                                var tokens = Tokenizer.Tokenize(content, file);
                                 foreach (var token in tokens)
                                     wal.Log(token.Key, token.Value);
                             }
