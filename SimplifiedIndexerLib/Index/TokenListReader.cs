@@ -1,4 +1,5 @@
-﻿using SimplifiedIndexerLib.Tokens;
+﻿using SimplifiedIndexerLib.IndexSearch;
+using SimplifiedIndexerLib.Tokens;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,12 +8,12 @@ namespace SimplifiedIndexerLib.Index
 {
     public class TokenListReader : IndexReader
     {
-        public List<List<Token>> GetByIndex(List<List<int>> indexLists)
+        public List<List<Token>> GetByIndex(List<TermQuery> indexLists)
         {
             // Pre-allocate result lists
             var tokenLists = new List<List<Token>>(indexLists.Count);
             for (int i = 0; i < indexLists.Count; i++)
-                tokenLists.Add(new List<Token>(indexLists[i].Count));
+                tokenLists.Add(new List<Token>(indexLists[i].Positions.Count));
 
             // Build request map: pos → list indices
             var requestMap = BuildRequestMap(indexLists);
@@ -31,17 +32,17 @@ namespace SimplifiedIndexerLib.Index
             return tokenLists;
         }
 
-        private static Dictionary<int, List<int>> BuildRequestMap(List<List<int>> indexLists)
+        private static Dictionary<int, List<int>> BuildRequestMap(List<TermQuery> indexLists)
         {
             int estimatedSize = 0;
             for (int i = 0; i < indexLists.Count; i++)
-                estimatedSize += indexLists[i].Count;
+                estimatedSize += indexLists[i].Positions.Count;
 
             var requestMap = new Dictionary<int, List<int>>(estimatedSize);
 
             for (int listIdx = 0; listIdx < indexLists.Count; listIdx++)
             {
-                var positions = indexLists[listIdx];
+                var positions = indexLists[listIdx].Positions;
                 for (int j = 0; j < positions.Count; j++)
                 {
                     int pos = positions[j];

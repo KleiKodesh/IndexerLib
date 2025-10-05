@@ -9,7 +9,7 @@ namespace SimplifiedIndexerLib.Helpers
     {
         public static string GetText(string filePath)
         {
-            if (string.IsNullOrEmpty(filePath))
+            if (string.IsNullOrEmpty(filePath)|| !File.Exists(filePath))
                 return string.Empty;
 
             string extension = Path.GetExtension(filePath).ToLower();

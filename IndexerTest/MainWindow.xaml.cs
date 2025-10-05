@@ -68,77 +68,58 @@ namespace IndexerTest
                 short adjacency = (short)AdjacencySettingsBox.Value;
 
                 string htmlStyle = "font-family:Segoe UI; direction:rtl;";
-                WebView.NavigateToString($"<html><body style='{htmlStyle}' id='results'></body></html>");
+                WebView.NavigateToString($"<html><body style='{htmlStyle}' id='results'><ol></ol></body></html>");
 
                 using (var docIdStore = new DocIdStore())
                 {
                     await Task.Run(() =>
                     {
                         var results = SearchIndex.Execute(query, adjacency);
-                        //Console.WriteLine(DateTime.Now);
 
-                        var batch = new List<string>();
-                        int count = 0;
+                        int liIndex = 1;
 
                         foreach (var result in results)
                         {
                             SnippetBuilder.GenerateSnippets(result, docIdStore);
 
-                            var sb = new StringBuilder();
                             foreach (var snippet in result.Snippets)
                             {
                                 if (token.IsCancellationRequested)
                                     return;
 
-                                sb.AppendLine($@"
-<div style='margin-bottom:12px;'>
+                                string html = $@"
+<li>
    <b>Document {result.DocId}</b><br/>
    <small style='color:gray;'>{Path.GetFileName(result.DocPath)}</small><br/>
    {snippet}<br/>
-</div>");
-                            }
+</li>";
 
-                            if (sb.Length > 0)
-                            {
-                                batch.Add(sb.ToString());
-                                count++;
-                            }
-
-                            // Flush every 10
-                            if (count >= 10)
-                            {
-                                FlushBatch(batch, token);
-                                batch.Clear();
-                                count = 0;
+                                FlushHtml(html, token);
+                                liIndex++;
                             }
                         }
-
-                        // Flush leftovers
-                        if (batch.Count > 0)
-                        {
-                            FlushBatch(batch, token);
-                        }
-
                     }, token);
                 }
             }
-            catch (Exception ex) { Console.WriteLine(ex.Message); }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
         }
 
-        private void FlushBatch(List<string> batch, CancellationToken token)
+        private void FlushHtml(string html, CancellationToken token)
         {
             if (token.IsCancellationRequested) return;
-
-            string html = string.Join(Environment.NewLine, batch);
 
             Application.Current.Dispatcher.Invoke(() =>
             {
                 string js = $@"
-var container = document.getElementById('results');
+var container = document.querySelector('#results ol');
 container.insertAdjacentHTML('beforeend', `{html}`);";
                 WebView.ExecuteScriptAsync(js);
             });
         }
+
 
 
         private void DebugButton_Click(object sender, RoutedEventArgs e)
