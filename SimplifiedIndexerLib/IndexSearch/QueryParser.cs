@@ -3,32 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+// test are inconclusive wich is fster this or the commented out version
 namespace SimplifiedIndexerLib.IndexSearch
 {
-    // test are inconclusive wich is fster this or the commented out version
-    public class QueryParser
-    {
-        public static List<TermQuery> GenerateWordPositions(string query)
-        {
-            var terms = query.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            var termQueries = terms.Select(t => new TermQuery(t)).ToList();
-            var matchers = termQueries.Select(tq => new TermMatcher(tq.Term, tq)).ToList();
-
-            int index = 0;
-            foreach (var word in WordsStore.GetWords())
-            {
-                foreach (var matcher in matchers)
-                {
-                    if (matcher.Match(word))
-                        matcher.Query.Positions.Add(index);
-                }
-                index++;
-            }
-
-            return termQueries;
-        }
-    }
-
     public class TermQuery
     {
         public string Term { get; }
@@ -41,28 +18,40 @@ namespace SimplifiedIndexerLib.IndexSearch
         }
     }
 
-    public class TermMatcher
+    public class QueryParser
     {
-        private readonly string _pattern;
-        public TermQuery Query { get; }
-
-        public TermMatcher(string pattern, TermQuery query)
+        public static List<TermQuery> GenerateWordPositions(string query)
         {
-            _pattern = pattern;
-            Query = query;
+            var terms = query.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                             .Select(t => new TermQuery(t))
+                             .ToList();
+
+            int index = 0;
+            foreach (var word in WordsStore.GetWords())
+            {
+                foreach (var tq in terms)
+                {
+                    if (MatchWord(tq.Term, word))
+                        tq.Positions.Add(index);
+                }
+                index++;
+            }
+
+            return terms;
         }
 
-        public bool Match(string input)
+        // same wildcard matcher logic
+        private static bool MatchWord(string pattern, string input)
         {
             int p = 0, s = 0, starIdx = -1, match = 0, starCount = 0;
 
             while (s < input.Length)
             {
-                if (p < _pattern.Length && (_pattern[p] == input[s] || _pattern[p] == '?'))
+                if (p < pattern.Length && (pattern[p] == input[s] || pattern[p] == '?'))
                 {
                     p++; s++;
                 }
-                else if (p < _pattern.Length && _pattern[p] == '*')
+                else if (p < pattern.Length && pattern[p] == '*')
                 {
                     starIdx = p++;
                     match = s;
@@ -77,11 +66,12 @@ namespace SimplifiedIndexerLib.IndexSearch
                 else return false;
             }
 
-            while (p < _pattern.Length && (_pattern[p] == '*' || _pattern[p] == '?')) p++;
-            return p == _pattern.Length;
+            while (p < pattern.Length && (pattern[p] == '*' || pattern[p] == '?')) p++;
+            return p == pattern.Length;
         }
     }
 }
+
 
 
 //using SimplifiedIndexerLib.Index;
