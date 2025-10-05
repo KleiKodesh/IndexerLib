@@ -8,7 +8,7 @@ namespace SimplifiedIndexerLib.IndexSearch
 {
     public static class SearchEngine
     {
-        public static List<SearchResult> Execute(string query, short adjacency = 2)
+        public static IEnumerable<SearchResult> Execute(string query, short adjacency = 2)
         {
             var startTime = DateTime.Now;
             Console.WriteLine("Parsing query..." + DateTime.Now);
@@ -33,7 +33,7 @@ namespace SimplifiedIndexerLib.IndexSearch
             var results = SearchMatcher.OrderedAdjacencyMatch(docs, adjacency);
 
             Console.WriteLine("Search complete. Elapsed: " + (DateTime.Now - startTime));
-            return results.ToList();
+            return results;
         }
     }
 }
