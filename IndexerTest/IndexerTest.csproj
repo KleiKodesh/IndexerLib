@@ -160,13 +160,13 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="research.ico" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\SimplifiedIndexerLib\SimplifiedIndexerLib.csproj">
       <Project>{7ee2da05-44b3-4c2e-a204-8924cc36dc9a}</Project>
       <Name>SimplifiedIndexerLib</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <Resource Include="research.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Docnet.Core.2.6.0\build\net45\Docnet.Core.targets" Condition="Exists('..\packages\Docnet.Core.2.6.0\build\net45\Docnet.Core.targets')" />

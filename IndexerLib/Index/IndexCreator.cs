@@ -9,11 +9,11 @@ using System.IO;
 using System.Linq;
 using System.Timers;
 
-namespace IndexerLib.Sample
+namespace IndexerLib.Index
 {
-    public static class IndexManager
+    public static class IndexCreator
     {
-        public static void CreateIndex(string directory, string[] extensions, int memoryUsage = 10)
+        public static void Execute(string directory, string[] extensions, int memoryUsage = 10)
         {
             try
             {
@@ -22,17 +22,13 @@ namespace IndexerLib.Sample
 
                 var indexStart = DateTime.Now;
                 int fileCount = files.Count;
-                int currentIndex = -1;
-
-                Timer progressTimer = new Timer(2000); // every 2s
-                progressTimer.Elapsed += (sender, e) =>
-                {
-                    Console.WriteLine($"File Progress: {currentIndex} / {fileCount}");
-                };
-
-                progressTimer.Start();
+                int currentIndex = -1;   
 
                 var wal = new WAL(memoryUsage);
+                {
+                    wal.ProgressTimer.Elapsed += (sender, e) =>
+                        Console.WriteLine($"File Progress: {currentIndex} / {fileCount}");
+
                     foreach (var file in files)
                     {
                         currentIndex++;
@@ -42,7 +38,7 @@ namespace IndexerLib.Sample
 
                             if (!string.IsNullOrWhiteSpace(content))
                             {
-                                var tokens = RegexTokenizer.Tokenize(content, file);
+                                var tokens = Tokenizer.Tokenize(content, file);
                                 foreach (var token in tokens)
                                     wal.Log(token.Key, token.Value);
                             }
@@ -52,10 +48,8 @@ namespace IndexerLib.Sample
                             Console.WriteLine($"Error reading {file}: {ex.Message}");
                         }
                     }
+                }
 
-
-                progressTimer.Stop();
-                progressTimer.Dispose();
                 wal.Dispose();
 
                 Console.WriteLine($"Indexing complete! start time: {indexStart} end time: {DateTime.Now} total time: {DateTime.Now - indexStart}");

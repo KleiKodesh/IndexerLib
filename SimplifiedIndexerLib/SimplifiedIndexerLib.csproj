@@ -62,7 +62,8 @@
     <Compile Include="Helpers\TextExtractor.cs" />
     <Compile Include="IndexSearch\Postings.cs" />
     <Compile Include="IndexSearch\QueryParser.cs" />
-    <Compile Include="IndexSearch\SearchIndex.cs" />
+    <Compile Include="IndexSearch\SearchEngine.cs" />
+    <Compile Include="IndexSearch\SearchMatcher.cs" />
     <Compile Include="IndexSearch\SearchResult.cs" />
     <Compile Include="IndexSearch\SnippetBuilder.cs" />
     <Compile Include="IndexSearch\TokenGrouping.cs" />

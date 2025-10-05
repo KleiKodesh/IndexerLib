@@ -12,6 +12,10 @@ namespace IndexerLib.Index
         public string DocIdStorePath { get; set; }
         public string WordsStorePath { get; set; }
 
+        public const short flushCap = 25;
+
+        public const ushort MagicMarker = 0xCAFE;  // Marker value used in footer to verify file integrity
+
         public IndexerBase()
         {
             IndexDirectoryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Index");

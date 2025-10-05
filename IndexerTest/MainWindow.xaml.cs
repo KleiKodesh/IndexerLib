@@ -1,5 +1,5 @@
-﻿using Microsoft.WindowsAPICodePack.Dialogs;
-using SimplifiedIndexerLib.Index;
+﻿using SimplifiedIndexerLib.Index;
+using Microsoft.WindowsAPICodePack.Dialogs;
 using SimplifiedIndexerLib.IndexSearch;
 using System;
 using System.Collections.Generic;
@@ -74,7 +74,7 @@ namespace IndexerTest
                 {
                     await Task.Run(() =>
                     {
-                        var results = SearchIndex.Execute(query, adjacency);
+                        var results = SearchEngine.Execute(query, adjacency);
 
                         int liIndex = 1;
 

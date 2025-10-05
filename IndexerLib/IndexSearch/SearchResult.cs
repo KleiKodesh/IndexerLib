@@ -5,9 +5,10 @@ namespace IndexerLib.IndexSearch
 {
     public class SearchResult
     {
-        public int DocId { get; set; }                  // Document ID
-        public string DocPath { get; set; }                  // Document Path
-        public string Snippet { get; set; } //  highlighted snippet
-        public Postings[] MatchedPostings { get; set; }
+        public int DocId { get; set; }      // Document ID
+        public string DocPath { get; set; } // Document Path
+        public List<string> Snippets { get; set; } // Highlighted snippet
+
+        public List<Postings[]> MatchedPostings { get; set; } // Word positions that matched
     }
 }

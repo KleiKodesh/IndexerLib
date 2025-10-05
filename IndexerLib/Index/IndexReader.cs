@@ -1,32 +1,24 @@
-﻿using IndexerLib.Helpers;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 
 namespace IndexerLib.Index
 {
-    /// <summary>
-    /// Reads token data from a custom index file format.
-    /// Supports retrieving stored blocks by string key or hash,
-    /// as well as enumerating all indexed keys.
-    /// </summary>
     public class IndexReader : IndexerBase, IDisposable
     {
-        const ushort MagicMarker = 0xCAFE;  // Marker value used in footer to verify file integrity
+        protected readonly FileStream _indexStream;   // used only for index traversal
+        protected readonly BinaryReader _indexReader;
 
-        public readonly SHA256 Sha256;                   // Hashing algorithm used for generating key identifiers (SHA-256)
-        public readonly ByteArrayComparer ByteComparer;  // Custom comparer for comparing byte[] hashes in binary search
-        public FileStream FileStream { get; private set; }          // File stream pointing to the index file
-        readonly MyBinaryReader _reader;           // Custom binary reader that supports 7-bit encoding
+        protected readonly FileStream _dataStream;    // used only for block reads
 
-        private long _indexStart;     // The starting byte offset of the index table within the file
-        private int _indexCount;      // Total number of entries (keys) in the index
+        protected readonly long _indexStart;
+        protected readonly long _indexLength;
 
+        protected const int RecordSize = 32 + sizeof(long) + sizeof(int);
+        // 32 bytes hash + 8 bytes offset + 4 bytes length = 44 bytes per record
 
-        IEnumerator<IndexKey> _enumerator;
+        private IEnumerator<IndexKey> _enumerator;
         public IEnumerator<IndexKey> Enumerator
         {
             get
@@ -37,134 +29,105 @@ namespace IndexerLib.Index
             }
         }
 
-        /// <summary>
-        /// Initializes an IndexReader instance for reading stored tokens.
-        /// </summary>
         public IndexReader(string path = "")
         {
-            if(!string.IsNullOrEmpty(path))
+            if (!string.IsNullOrEmpty(path))
                 TokenStorePath = path;
 
             EnsureTokenStorePath();
-            if (!File.Exists(TokenStorePath))
-                throw new Exception("Index file does not exist");
 
-            FileStream = new FileStream(TokenStorePath, FileMode.Open, FileAccess.Read);
-            _reader = new MyBinaryReader(FileStream, Encoding.UTF8, leaveOpen: true);
-            Sha256 = SHA256.Create();
-            ByteComparer = new ByteArrayComparer();
+            // one stream for reading index records
+            _indexStream = new FileStream(TokenStorePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                bufferSize: 81920);
+            _indexReader = new BinaryReader(_indexStream, Encoding.UTF8, leaveOpen: true);
 
-            LoadIndexMetadata();
+            // separate stream for block data
+            _dataStream = new FileStream(TokenStorePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                bufferSize: 81920);
+
+            (_indexStart, _indexLength) = LocateIndex();
         }
 
-        /// <summary>
-        /// Loads index metadata (footer containing magic marker and index start position).
-        /// </summary>
-        void LoadIndexMetadata()
+        private (long indexStart, long indexLength) LocateIndex()
         {
-            if (FileStream.Length < 8) // Minimum size must contain footer
-                return;
+            if (_indexStream.Length < sizeof(ulong))
+                throw new InvalidDataException("Invalid index file: too small.");
 
-            // Seek to last 8 bytes (footer structure)
-            FileStream.Seek(-8, SeekOrigin.End);
-            ulong footer = new MyBinaryReader(FileStream).ReadUInt64();
+            _indexStream.Seek(-sizeof(ulong), SeekOrigin.End);
+            ulong footer = _indexReader.ReadUInt64();
 
-            // Validate footer magic marker (high 16 bits)
-            if ((ushort)(footer >> 48) != MagicMarker)
-                throw new InvalidDataException("Invalid footer/magic marker");
+            ushort magic = (ushort)(footer >> 48);
+            if (magic != MagicMarker)
+                throw new InvalidDataException("Invalid magic marker. File might be corrupted or incompatible.");
 
-            // Extract index length (low 48 bits of footer)
-            long indexLength = (long)(footer & 0xFFFFFFFFFFFF);
+            long indexLength = (long)(footer & 0xFFFFFFFFFFFF); // low 48 bits
+            long indexStart = _indexStream.Length - sizeof(ulong) - indexLength;
 
-            // Calculate starting offset of index table
-            _indexStart = FileStream.Length - 8 - indexLength;
+            if (indexStart < 0)
+                throw new InvalidDataException("Invalid index length in footer.");
 
-            // Read total number of index entries
-            FileStream.Seek(_indexStart, SeekOrigin.Begin);
-            _indexCount = _reader.ReadInt32();
+            return (indexStart, indexLength);
         }
 
-        /// <summary>
-        /// Enumerates all keys (hash, offset, length) stored in the index.
-        /// </summary>
+        public byte[] GetDataByIndex(int index)
+        {
+            long entryOffset = _indexStart + (index * RecordSize);
+
+            if (entryOffset + RecordSize > _indexStart + _indexLength)
+                throw new ArgumentOutOfRangeException(nameof(index), "Index out of range for index table.");
+
+            _indexStream.Seek(entryOffset + 32, SeekOrigin.Begin); // skip hash
+
+            long dataOffset = _indexReader.ReadInt64();
+            int dataLength = _indexReader.ReadInt32();
+
+            return ReadBlock(dataOffset, dataLength);
+        }
+
+        public byte[] ReadBlock(long offset, int length)
+        {
+            _dataStream.Seek(offset, SeekOrigin.Begin);
+            byte[] data = new byte[length];
+            _dataStream.Read(data, 0, length);
+
+            return data;
+        }
+
         public IEnumerable<IndexKey> GetAllKeys()
         {
-            if (FileStream.Length < 8)
-                yield return null;
+            _indexStream.Seek(_indexStart, SeekOrigin.Begin);
+            long recordCount = _indexLength / RecordSize;
 
-            FileStream.Seek(_indexStart, SeekOrigin.Begin);
-
-            int keysCount = _reader.ReadInt32();
-            for (int i = 0; i < keysCount; i++)
+            for (long i = 0; i < recordCount; i++)
             {
-                yield return new IndexKey
-                {
-                    Hash = _reader.ReadBytes(32),   // SHA-256 hash of the key
-                    Offset = _reader.ReadInt64(),   // File offset of the data block
-                    Length = _reader.ReadInt32()    // Size of the data block
-                };
+                if (_indexStream.Position + RecordSize > _indexStart + _indexLength)
+                    yield break;
+
+                yield return new IndexKey(_indexReader);
             }
         }
 
-        /// <summary>
-        /// Retrieves a stored block given its string key with precomputed code.
-        /// </summary>
-        public byte[] GetTokenDataByPos(int pos)
-        {
-           var indexKey = GetIndexKeyByPos(pos);
 
-           if (indexKey == null)
-                return null;
+        //public IEnumerable<KeyValuePair<string, List<Token>>> GetAllTokens()
+        //{
+        //    int recordCount = (int)_indexLength / RecordSize;
 
-            // Seek to the data location and read the actual token data
-            _reader.BaseStream.Seek(indexKey.Offset, SeekOrigin.Begin);
-            return _reader.ReadBytes(indexKey.Length);
-        }
+        //    var words = WordsStore.GetWords().ToList();
 
-        public IndexKey GetIndexKeyByPos(int pos)
-        {
+        //    for (int i = 0; i < recordCount; i++)
+        //    {
+        //        var data = GetDataByIndex(i);
+        //        var tokens = Serializer.DeserializeTokenGroup(data);
 
-            if (pos < 0)
-                return null;
+        //        yield return new KeyValuePair<string, List<Token>>(words[i], tokens);
+        //    }
+        //}
 
-            // Compute entry position directly
-            long entryPos = _indexStart + 4 + (pos * 44); // pos = entry number
-            _reader.BaseStream.Seek(entryPos, SeekOrigin.Begin);
-
-            return new IndexKey
-            {
-                Hash = _reader.ReadBytes(32),
-                Offset = _reader.ReadInt64(),
-                Length = _reader.ReadInt32()
-            };
-        }
-
-        /// <summary>
-        /// Reads a data block from the file based on its index entry.
-        /// </summary>
-        public byte[] ReadBlock(IndexKey entry)
-        {
-            var prevPos = FileStream.Position; // Save current position to restore later
-
-            FileStream.Seek(entry.Offset, SeekOrigin.Begin);
-
-            byte[] buffer = new byte[entry.Length];
-            _reader.Read(buffer, 0, buffer.Length);
-
-            // Restore original stream position
-            FileStream.Position = prevPos;
-
-            return buffer;
-        }
-
-        /// <summary>
-        /// Releases file and reader resources.
-        /// </summary>
         public void Dispose()
         {
-            _reader?.Dispose();
-            FileStream.Dispose();
-            Sha256?.Dispose();
+            _indexReader?.Dispose();
+            _indexStream?.Dispose();
+            _dataStream?.Dispose();
         }
     }
 }

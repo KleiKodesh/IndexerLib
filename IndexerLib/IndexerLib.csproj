@@ -106,36 +106,42 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Helpers\ByteArrayComparer.cs" />
+    <Compile Include="Helpers\BytesArrayHelper.cs" />
+    <Compile Include="Helpers\ConsoleDotAnimator.cs" />
+    <Compile Include="Helpers\ConsoleSpinner.cs" />
     <Compile Include="Helpers\FsSort.cs" />
-    <Compile Include="Helpers\StringExtensions.cs" />
-    <Compile Include="Helpers\MyBinaryWriter.cs" />
+    <Compile Include="Helpers\MemoryManager.cs" />
     <Compile Include="Helpers\MyBinaryReader.cs" />
+    <Compile Include="Helpers\MyBinaryWriter.cs" />
+    <Compile Include="Helpers\StringExtensions.cs" />
     <Compile Include="Helpers\TextExtractor.cs" />
-    <Compile Include="IndexSearch\SearchIndex.cs" />
+    <Compile Include="IndexSearch\SearchMatcher.cs" />
+    <Compile Include="IndexSearch\QueryParser.cs" />
+    <Compile Include="IndexSearch\SearchEngine.cs" />
     <Compile Include="IndexSearch\SearchResult.cs" />
-    <Compile Include="IndexSearch\SearchIndex - new.cs" />
     <Compile Include="IndexSearch\SnippetBuilder.cs" />
-    <Compile Include="Index\IndexMerger.cs" />
-    <Compile Include="Index\IndexReader.cs" />
-    <Compile Include="Index\TokenReader.cs" />
-    <Compile Include="Index\WAL.cs" />
-    <Compile Include="Index\WordsStore.cs" />
+    <Compile Include="IndexSearch\TokenGrouping.cs" />
     <Compile Include="Index\DocIdStore.cs" />
+    <Compile Include="Index\IndexCreator.cs" />
     <Compile Include="Index\IndexerBase.cs" />
     <Compile Include="Index\IndexKey.cs" />
+    <Compile Include="Index\IndexMerger.cs" />
+    <Compile Include="Index\IndexReader.cs" />
     <Compile Include="Index\IndexWriter.cs" />
+    <Compile Include="Index\TokenListReader.cs" />
+    <Compile Include="Index\WAL.cs" />
+    <Compile Include="Index\WordsStore.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Sample\IndexManager.cs" />
     <Compile Include="Tokens\RegexTokenizer.cs" />
     <Compile Include="Tokens\Serializer.cs" />
     <Compile Include="Tokens\Token.cs" />
+    <Compile Include="Tokens\Tokenizer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="IndexSearch\TextFile1.txt" />
     <Content Include="ideas.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

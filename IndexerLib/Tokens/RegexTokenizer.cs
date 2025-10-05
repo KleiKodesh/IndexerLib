@@ -1,46 +1,67 @@
-﻿using IndexerLib.Index;
-using System;
-using System.Collections.Generic;
-using System.Text.RegularExpressions;
+﻿//using IndexerLib.Index;
+//using System;
+//using System.Collections.Generic;
+//using System.Text.RegularExpressions;
 
-namespace IndexerLib.Tokens
-{
-    public static class RegexTokenizer
-    {
-        static readonly Regex WordRegex = new Regex( @"(?:[\p{L}\p{M}\p{Nd}_]+(?:<[^>]+>[\p{L}\p{M}\p{Nd}_]+)*)", RegexOptions.Compiled);
-        private static readonly Regex CleanWordRegex = new Regex(@"(<.*?>)|\p{M}+", RegexOptions.Compiled);
+//namespace IndexerLib.Tokens
+//{
+//    public static class RegexTokenizer
+//    {
+//        // word regex exclude digits with support for either HTML tags or a literal " in the middle of a word.
+//        static readonly Regex WordRegex = new Regex(@"(?:[\p{L}\p{M}_]+(?:(?:(?:<[^>]+>)|"")[\p{L}\p{M}_]+)*)", RegexOptions.Compiled);
+//        private static readonly Regex CleanWordRegex = new Regex(@"(?:<.*?>)|[\p{M}""]+", RegexOptions.Compiled);
 
-        public static Dictionary<string, Token> Tokenize(string text, string path)
-        {
-            var tokens = new Dictionary<string, Token>(StringComparer.OrdinalIgnoreCase);
-            int wordIndex = 1;
-            int docId = 0;
+//        /// <summary>
+//        /// Returns only valid raw matches from the text.
+//        /// Filtering is applied using the cleaned word.
+//        /// </summary>
+//        public static List<Match> TokenStream(string text)
+//        {
+//            var result = new List<Match>();
 
-            using (var idStore = new DocIdStore())
-                docId = idStore.Add(path);
+//            foreach (Match match in WordRegex.Matches(text))
+//            {
+//                string cleaned = CleanWordRegex.Replace(match.Value, "");
 
-            foreach (Match match in WordRegex.Matches(text))
-            {
-                string word = CleanWordRegex.Replace(match.Value.ToLowerInvariant(), "");
+//                if (cleaned.Length <= 1 || cleaned.Length >= 45)
+//                    continue;
 
-                if (word.Length <= 1 || word.Length >= 45) // skip non word tokens
-                    continue;
+//                result.Add(match);
+//            }
 
-                if (!tokens.TryGetValue(word, out var token))
-                {
-                    token = new Token { DocId = docId };
-                    tokens[word] = token;
-                }
+//            return result;
+//        }
 
-                token.Postings.Add(new Postings
-                {
-                    Position = wordIndex++,
-                    StartIndex = match.Index,
-                    Length = match.Length
-                });
-            }
+//        /// <summary>
+//        /// Builds inverted index for a single document.
+//        /// Uses the same filtering rules as TokenStream, so positions match.
+//        /// </summary>
+//        public static Dictionary<string, Token> Tokenize(string text, string path)
+//        {
+//            var tokens = new Dictionary<string, Token>(StringComparer.OrdinalIgnoreCase);
+//            int docId;
 
-            return tokens;
-        }
-    }
-}
+//            using (var idStore = new DocIdStore())
+//                docId = idStore.Add(path);
+
+//            int position = 0;
+//            foreach (Match match in WordRegex.Matches(text))
+//            {
+//                string cleaned = CleanWordRegex.Replace(match.Value, "");
+
+//                if (cleaned.Length <= 1 || cleaned.Length >= 45)
+//                    continue;
+
+//                if (!tokens.TryGetValue(cleaned, out var token))
+//                {
+//                    token = new Token { DocId = docId };
+//                    tokens[cleaned] = token;
+//                }
+
+//                token.Postions.Add(position++);
+//            }
+
+//            return tokens;
+//        }
+//    }
+//}

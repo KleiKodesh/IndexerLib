@@ -1,156 +1,124 @@
 ﻿using IndexerLib.Helpers;
-using IndexerLib.IndexManger;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.ComTypes;
 using System.Security.Cryptography;
 using System.Text;
-using static IndexerLib.Helpers.ByteArrayComparer;
 
 namespace IndexerLib.Index
 {
-    /// <summary>
-    /// IndexWriter is responsible for writing token data to the index storage,
-    /// a costume binary file format is implemnted saving binary data with an index at its end for efficient lookup.
-    /// a footer is created at the end of the file indicating the index section length.
-    /// </summary>
     public class IndexWriter : IndexerBase, IDisposable
     {
-        readonly FileStream _fileStream;        // Underlying file stream for writing data
-        readonly MyBinaryWriter _writer;        // Custom binary writer for writing with encoding
-        readonly SHA256 _sha256;                // Hashing algorithm used for word identifiers
-        const ushort MagicMarker = 0xCAFE;      // Marker value used in footer to verify file integrity
+        protected readonly FileStream _dataStream;
+        protected readonly FileStream _indexKeyStream;
+        protected readonly BinaryWriter _dataWriter;
+        protected readonly BinaryWriter _indexKeyWriter;
+        protected readonly string _tempIndexPath;
+        protected readonly SHA256 _sha256;
 
-        private long currentOffset = 0;         // Tracks current byte offset in file where next entry will be written
-
-        // Maps word hashes -> index metadata (offset + length)
-        Dictionary<byte[], IndexKey> Keys = new Dictionary<byte[], IndexKey>(new ByteArrayEqualityComparer());
-
-        // Stores unique words seen during indexing
-        HashSet<string> WordsSet = new HashSet<string>();
+        protected long currentOffset = 0; // instead of intf
+        protected HashSet<string> _words;
 
         public IndexWriter(string name = "")
         {
-            if(!string.IsNullOrEmpty(name))
+            if (!string.IsNullOrEmpty(name))
                 TokenStorePath = Path.Combine(IndexDirectoryPath, name + ".tks");
-            // Ensure the token store path is unique/valid before creating the stream
+
             EnsureUniqueTokenStorePath();
+            _tempIndexPath = TokenStorePath + ".keys";
 
-            // Open/create the underlying file to hold serialized tokens
-            _fileStream = new FileStream(TokenStorePath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+            _dataStream = new FileStream(TokenStorePath, FileMode.OpenOrCreate, FileAccess.Write,
+                FileShare.None, bufferSize: 81920, FileOptions.SequentialScan);
+            _indexKeyStream = new FileStream(_tempIndexPath, FileMode.OpenOrCreate, FileAccess.Write,
+                FileShare.None, bufferSize: 81920, FileOptions.SequentialScan);
 
-            // Writer that supports writing primitive types + strings efficiently
-            _writer = new MyBinaryWriter(_fileStream, Encoding.UTF8, leaveOpen: true);
+            _dataWriter = new BinaryWriter(_dataStream, Encoding.UTF8, leaveOpen: true);
+            _indexKeyWriter = new BinaryWriter(_indexKeyStream, Encoding.UTF8, leaveOpen: true);
 
-            // SHA256 for hashing words -> stable 32-byte identifier
             _sha256 = SHA256.Create();
+            _words = new HashSet<string>(); // HashSet in ensures the uniqueness of the words. 
         }
 
-        /// <summary>
-        /// Writes token data to file and records its offset/length in the Keys dictionary.
-        /// </summary>
-        /// <param name="data">Serialized token data to write.</param>
-        /// <param name="word">Associated word to hash and track.</param>
-        public void Put(byte[] data, string word)
+        public virtual void Put(string key, Stream stream)
         {
-            if (string.IsNullOrEmpty(word) || data == null)
-                return;
+            if (stream == null || stream.Length == 0) return;
 
-            // Store the original word for persistence in a separate word set
-            WordsSet.Add(word);
+            if (stream.CanSeek) stream.Position = 0;
+            stream.CopyTo(_dataWriter.BaseStream, bufferSize: 81920);
 
-            // Compute SHA-256 hash of the word (32 bytes, fixed size)
-            string normalizedWord = word.Normalize(NormalizationForm.FormC);
-            byte[] hash = _sha256.ComputeHash(Encoding.UTF8.GetBytes(normalizedWord));
+            var hash = _sha256.ComputeHash(Encoding.UTF8.GetBytes(key.Normalize(NormalizationForm.FormC)));
 
-            Put(data, hash);
+            // write index key
+            _indexKeyWriter.Write(hash);
+            _indexKeyWriter.Write(currentOffset);
+            _indexKeyWriter.Write((int)stream.Length);
+
+            checked { currentOffset += stream.Length; }
+            _words.Add(key);
         }
 
-        /// <summary>
-        /// Writes token data to file using the provided hash as a key,
-        /// and stores its offset/length in the Keys dictionary.
-        /// </summary>
-        /// <param name="data">Serialized token data to write.</param>
-        /// <param name="hash">Precomputed SHA-256 hash to use as the key.</param>
-        public void Put(byte[] data, byte[] hash)
+        public void Put(byte[] hash, byte[] data)
         {
             if (hash == null || data == null)
                 return;
 
-            // Write serialized token data at the current file offset
-            _writer.Write(data, 0, data.Length);
+            _dataWriter.Write(data, 0, data.Length);
 
-            // Record index entry for this stored data
-            Keys[hash] = new IndexKey
-            {
-                Hash = hash,
-                Offset = currentOffset,
-                Length = data.Length
-            };
+            // write index key
+            _indexKeyWriter.Write(hash);
+            _indexKeyWriter.Write(currentOffset);
+            _indexKeyWriter.Write(data.Length);
 
-            // Advance the file offset tracker
-            currentOffset += data.Length;
+            checked { currentOffset += data.Length; }
         }
 
-
-        /// <summary>
-        /// Disposes resources and finalizes the index file by appending the index and footer.
-        /// </summary>
         public void Dispose()
         {
-            AppendKeys(); // Append the index section at the end of the file
+            _sha256.Dispose();
 
-            // Store all unique words separately for regex lookup
-            WordsStore.AddWords(WordsSet);
+            _indexKeyWriter.Flush();
+            _indexKeyWriter.Dispose();
+            _indexKeyStream.Dispose();
 
-            // Cleanup resources
-            _writer.Flush();
-            _writer.Dispose();
-            _fileStream.Dispose();
-            _sha256?.Dispose();
+            AppendKeys();
+
+            _dataWriter.Flush();
+            _dataWriter.Dispose();
+            _dataStream.Dispose();
+
+            if (_words.Count > 0)
+                WordsStore.AddWords(_words);
         }
 
-        /// <summary>
-        /// Writes the sorted key index (hash -> offset/length) to the file,
-        /// followed by a footer containing a magic marker and index size.
-        /// </summary>
-        private void AppendKeys()
+        void AppendKeys()
         {
-            if (_fileStream == null)
-                return;
-
-            try
+            using (var tempIndexStream = new FileStream(_tempIndexPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var reader = new BinaryReader(tempIndexStream, Encoding.UTF8, leaveOpen: true))
             {
-                long indexStart = _fileStream.Position; // Start position of index section
+                // Build footer: high 16 bits = magic marker, low 48 bits = index length
+                ulong footer = ((ulong)MagicMarker << 48) | (ulong)tempIndexStream.Length;
 
-                // Sort entries by hash for deterministic ordering
-                var sortedIndex = Keys.OrderBy(kvp => kvp.Key, new ByteArrayComparer());
+                var entries = new List<IndexKey>();
+                while (tempIndexStream.Position < tempIndexStream.Length)
+                    entries.Add(new IndexKey(reader));
 
-                // Write number of index entries
-                _writer.Write(Keys.Count);
+                var sortedIndex = entries.OrderBy(k => k.Hash, new ByteArrayComparer());
 
-                // Write each index entry (hash, offset, length)
-                foreach (var indexKey in sortedIndex)
+                // Append sorted index to data stream
+                foreach (var entry in sortedIndex)
                 {
-                    _writer.Write(indexKey.Key);          // 32-byte SHA256 hash
-                    _writer.Write(indexKey.Value.Offset); // 64-bit offset
-                    _writer.Write(indexKey.Value.Length); // 32-bit length
+                    _dataWriter.Write(entry.Hash);
+                    _dataWriter.Write(entry.Offset);
+                    _dataWriter.Write(entry.Length);
                 }
 
-                // Calculate how many bytes the index took
-                long indexLength = _fileStream.Position - indexStart;
-
-                // Build footer: high 16 bits = magic marker, low 48 bits = index length
-                ulong footer = ((ulong)MagicMarker << 48) | (ulong)indexLength;
-
-                // Write footer at end of file
-                _writer.Write(footer);
+                _dataWriter.Write(footer);
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message); // For debugging purposes
-            }
+
+            if (File.Exists(_tempIndexPath))
+                File.Delete(_tempIndexPath);
         }
     }
 }

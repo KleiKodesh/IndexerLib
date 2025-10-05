@@ -1,132 +1,77 @@
-﻿using IndexerLib.Tokens;
-using IndexerLib.Index;
+﻿using IndexerLib.Helpers;
+using IndexerLib.Tokens;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.IO;
+using System.Text;
 using System.Threading;
-using System.Diagnostics;
-using IndexerLib.IndexManger;
 
 namespace IndexerLib.Index
 {
-    /// <summary>
-    /// Write-Ahead Log (WAL) implementation.
-    /// Buffers token writes in memory and periodically flushes them to disk.
-    /// Supports background merging of flushed index segments.
-    /// </summary>
     public class WAL : IDisposable
     {
-        // In-memory log buffer (key = token string, value = serialized token bytes)
-        private readonly ConcurrentQueue<KeyValuePair<string, byte[]>> _logQueue = new ConcurrentQueue<KeyValuePair<string, byte[]>>();
+        private readonly ConcurrentDictionary<string, MemoryStream> _streams;
+        private readonly long _memoryCapInBytes;
+        private long currentMemoryUsage = 0;
+        private short mergeCountdown = 25;
+        public readonly System.Timers.Timer ProgressTimer;
 
-        // Threshold for flushing data to disk (calculated dynamically from available memory)
-        int _threshHold;
-
-        // Countdown until next merge operation (merges after every 25 flushes)
-        short mergeCountdown = 25;
-
-        /// <summary>
-        /// Initializes a new WAL instance with a dynamic flush threshold
-        /// based on available system memory.
-        /// </summary>
-        /// <param name="memoryUsagePercent">
-        /// Percentage of available memory to target for WAL buffer usage.
-        /// Default is 10%.
-        /// </param>
-        public WAL(float memoryUsagePercent = 10)
+        // memory usage 500 mb default
+        public WAL(int memoryCap = 500)
         {
-            _threshHold = CalculateDynamicThreshold(memoryUsagePercent);
+            memoryCap = Math.Max(5, memoryCap / 15);
+            _memoryCapInBytes = memoryCap * 1024L * 1024L;
+            _streams = new ConcurrentDictionary<string, MemoryStream>();
+
+            ProgressTimer = new System.Timers.Timer(2000);
+            ProgressTimer.Start();
         }
 
-        /// <summary>
-        /// Calculates a dynamic flush threshold based on system memory availability.
-        /// Falls back to a fixed threshold if system counters are unavailable.
-        /// </summary>
-        private int CalculateDynamicThreshold(float percent)
-        {
-            try
-            {
-                using (var pc = new PerformanceCounter("Memory", "Available MBytes"))
-                {
-                    float availableMb = pc.NextValue();
-                    float targetUsageMb = availableMb * (percent / 100f);
-                    return (int)(targetUsageMb * 1_000); // Approximate entries per MB
-                }
-            }
-            catch (Exception ex)
-            {
-                // If performance counter fails, fallback to a safe static threshold
-                Console.WriteLine($"Failed to calculate threshold: {ex.Message}");
-                return 1_000_000; // default = 1M entries
-            }
-        }
-
-        /// <summary>
-        /// Enqueues a token for writing.
-        /// Triggers a flush when the in-memory buffer exceeds the threshold.
-        /// </summary>
         public void Log(string key, Token token)
         {
-            if (_logQueue.Count > _threshHold)
+            if (Interlocked.Read(ref currentMemoryUsage) >= _memoryCapInBytes)
                 Flush();
 
             byte[] serialized = Serializer.SerializeToken(token);
-            _logQueue.Enqueue(new KeyValuePair<string, byte[]>(key, serialized));
+
+            if (!_streams.ContainsKey(key))
+                Interlocked.Add(ref currentMemoryUsage, Encoding.UTF8.GetByteCount(key));
+
+            var stream = _streams.GetOrAdd(key, _ => new MemoryStream());
+            lock (stream) // ensure thread-safety for the same key
+            {
+                stream.Write(serialized, 0, serialized.Length);
+                Interlocked.Add(ref currentMemoryUsage, serialized.Length);
+            }
         }
 
-        /// <summary>
-        /// Flushes all buffered tokens to disk.
-        /// Groups tokens by key, writes combined data to a new index file,
-        /// and schedules a background merge when needed.
-        /// </summary>
         public void Flush()
         {
-            var groupedData = new Dictionary<string, List<byte[]>>();
-
-            // Drain queue and group entries by key
-            while (_logQueue.TryDequeue(out var item))
-            {
-                if (!groupedData.ContainsKey(item.Key))
-                    groupedData[item.Key] = new List<byte[]>();
-
-                groupedData[item.Key].Add(item.Value);
-            }
-
-            if (groupedData.Count == 0)
+            if (_streams.IsEmpty)
                 return;
 
             Console.WriteLine("Flushing...");
+            if (ProgressTimer != null)
+                ProgressTimer.Stop();
 
-            int flushCount = groupedData.Count;
-            int flushIndex = 0;
-
-            // Progress reporting every second
-            System.Timers.Timer progressTimer = new System.Timers.Timer(1000);
-            progressTimer.Elapsed += (sender, e) =>
-                Console.WriteLine($"Flushing: {flushIndex}\\{flushCount}");
-            progressTimer.Start();
-
-            string indexPath;
+            using (var spinner = new ConsoleSpinner())
             using (var writer = new IndexWriter())
             {
-                foreach (var entry in groupedData)
+                foreach (var kvp in _streams)
                 {
-                    flushIndex++;
-                    var combined = entry.Value.SelectMany(b => b).ToArray();
-                    writer.Put(data: combined, entry.Key);
+                    writer.Put(kvp.Key, kvp.Value);
+                    kvp.Value.Dispose();
                 }
-                indexPath = writer.TokenStorePath;
             }
 
-            // Cleanup resources
-            progressTimer.Stop();
-            progressTimer.Dispose();
+            _streams.Clear();
 
             GC.Collect();
             GC.WaitForPendingFinalizers();
+            currentMemoryUsage = 0;
             Console.WriteLine("Flush complete");
+            if (ProgressTimer != null)
+                ProgressTimer.Start();
 
             mergeCountdown--;
             if (mergeCountdown == 0)
@@ -136,12 +81,13 @@ namespace IndexerLib.Index
             }
         }
 
-        /// <summary>
-        /// Ensures any pending data is flushed and merged before disposal.
-        /// </summary>
         public void Dispose()
         {
             Flush();
+
+            ProgressTimer?.Stop();
+            ProgressTimer?.Dispose();
+
             IndexMerger.Merge();
             WordsStore.SortWordsByIndex();
         }

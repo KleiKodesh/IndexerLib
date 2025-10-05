@@ -9,15 +9,7 @@ namespace IndexerLib.Tokens
     /// </summary>
     public class Token
     {
-        /// <summary>
-        /// Unique identifier doc that contains this token.
-        /// </summary>
         public int DocId { get; set; }
-
-        /// <summary>
-        /// Collection of postings that store information about 
-        /// occurrences of this token within this doc (e.g. positions etc.)
-        /// </summary>
         public List<Postings> Postings { get; set; } = new List<Postings>();
     }
 
