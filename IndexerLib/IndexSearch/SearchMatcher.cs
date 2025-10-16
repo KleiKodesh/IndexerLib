@@ -10,7 +10,12 @@ namespace IndexerLib.IndexSearch
         public static IEnumerable<SearchResult> OrderedAdjacencyMatch(
             Dictionary<int, List<List<Postings>>> docs, int adjacency)
         {
-            adjacency -= 1; // adjacency=1 means consecutive terms
+            /*  Adjust adjacency by +1 because position differences are off by one:
+               For example, if two words are adjacent (positions 10 and 11),
+               their distance is 1, not 0. So user adjacency=0 (exact phrase)
+               should allow position diff=1. This keeps "adjacency" meaning
+               consistent with "number of words between terms".    */
+            adjacency++;
 
             foreach (var docEntry in docs.OrderBy(kvp => kvp.Key))
             {

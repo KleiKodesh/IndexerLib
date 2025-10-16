@@ -166,9 +166,9 @@
     <Resource Include="research.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SimplifiedIndexerLib\SimplifiedIndexerLib.csproj">
-      <Project>{7ee2da05-44b3-4c2e-a204-8924cc36dc9a}</Project>
-      <Name>SimplifiedIndexerLib</Name>
+    <ProjectReference Include="..\IndexerLib\IndexerLib.csproj">
+      <Project>{e2affb7b-195d-4cd7-90e4-e32564962d61}</Project>
+      <Name>IndexerLib</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
