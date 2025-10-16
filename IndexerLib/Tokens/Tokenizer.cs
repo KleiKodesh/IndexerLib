@@ -76,7 +76,7 @@ namespace IndexerLib.Tokens
                 token.Postings.Add(new Postings
                 {
                     Position = wordCounter++,
-                    StartIndex = startIndex,
+                    Index = startIndex,
                     Length = index - startIndex,
                 });
             }

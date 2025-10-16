@@ -7,11 +7,11 @@ namespace IndexerLib.Tokens
     /// Each token is linked to a specific document (DocId) and
     /// contains a list of postings indicating its occurrences in the text.
     /// 
-    /// Tokens and postings are stored entirely as numeric values
+    /// <para>Tokens and postings are stored entirely as numeric values
     /// for compact storage and efficient binary serialization.
     /// This design allows seamless use with BinaryReader and BinaryWriter,
     /// enabling fast custom serialization and deserialization,
-    /// and forming the foundation of the inverted index's costume binary storage format.
+    /// and forming the foundation of the inverted index's costume binary storage format.</para>
     /// </summary>
     public class Token
     {
@@ -24,7 +24,10 @@ namespace IndexerLib.Tokens
         public int DocId { get; set; }
 
         /// <summary>
-        /// A list of postings indicating each occurrence of the token in the document.
+        /// A collection of postings representing all occurrences of this token
+        /// within the document. Since a token may appear multiple times in a document,
+        /// each occurrence is stored as a <see cref="Postings"/> entry rather than
+        /// duplicating the token itself.
         /// </summary>
         public List<Postings> Postings { get; set; } = new List<Postings>();
     }
@@ -45,7 +48,7 @@ namespace IndexerLib.Tokens
         /// The character index of the token's first character in the document text.
         /// Used for snippet extraction.
         /// </summary>
-        public int StartIndex { get; set; }
+        public int Index { get; set; }
 
         /// <summary>
         /// The token's length in characters (including diacritics, HTML tags, quotes, etc.).

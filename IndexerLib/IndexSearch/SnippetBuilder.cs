@@ -28,8 +28,8 @@ namespace IndexerLib.IndexSearch
                     continue;
 
                 // overall span across all postings for this match
-                int matchStart = postings.Min(p => p.StartIndex);
-                int matchEnd = postings.Max(p => p.StartIndex + p.Length);
+                int matchStart = postings.Min(p => p.Index);
+                int matchEnd = postings.Max(p => p.Index + p.Length);
 
                 int snippetStart = Math.Max(0, matchStart - windowSize);
                 int snippetEnd = Math.Min(docText.Length, matchEnd + windowSize);
@@ -37,10 +37,10 @@ namespace IndexerLib.IndexSearch
 
                 // prepare highlight ranges relative to snippet start
                 var highlights = postings
-                    .OrderBy(p => p.StartIndex)
+                    .OrderBy(p => p.Index)
                     .Select(p => new
                     {
-                        RelativeStart = p.StartIndex - snippetStart,
+                        RelativeStart = p.Index - snippetStart,
                         Length = p.Length
                     })
                     .Where(h => h.RelativeStart < snippet.Length && h.RelativeStart + h.Length > 0)
