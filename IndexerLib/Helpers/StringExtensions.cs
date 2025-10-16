@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace SimplifiedIndexerLib.Helpers
+namespace IndexerLib.Helpers
 {
     public static class StringExtensions
     {

@@ -7,10 +7,19 @@ using System.Text;
 
 namespace IndexerLib.Tokens
 {
+    /// <summary>
+    /// Provides fast serialization and deserialization for <see cref="Token"/> objects
+    /// using compact binary encoding. 
+    /// easy to implemnt with binary reader and writer since they have built in code for serailizing numbers
+    /// 
+    /// Compression techniques:
+    /// - 7-bit encoded integers to reduce space (approx. 1/5 ratio).
+    /// - Delta encoding for postings: stores differences instead of absolute values,
+    ///   making small numbers more space-efficient.
+    /// - Custom binary reader/writer to handle 7-bit encoding in .NET Framework.
+    /// </summary>
     public static class Serializer
     {
-        // Note: using 7-bit encoded integers to conserve space.
-        // Using custom binary writer and reader to implement 7-bit encoding in .NET Framework.
         public static byte[] SerializeToken(Token token)
         {
             using (var stream = new MemoryStream())

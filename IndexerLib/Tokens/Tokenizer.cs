@@ -1,10 +1,10 @@
 ﻿using IndexerLib.Tokens;
-using SimplifiedIndexerLib.Helpers;
+using IndexerLib.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace SimplifiedIndexerLib.Tokens
+namespace IndexerLib.Tokens
 {
     /// <summary>
     /// Ultra-fast tokenizer for indexing (normalized words only)
@@ -63,8 +63,8 @@ namespace SimplifiedIndexerLib.Tokens
                 index++;
             }
 
-            int length = _sb.Length;
-            if (length >= MinWordLength && length <= MaxWordLength)
+           
+            if (_sb.Length >= MinWordLength && _sb.Length <= MaxWordLength)
             {
                 string w = _sb.ToString().Trim('\"');
                 if (!_tokens.TryGetValue(w, out var token))
@@ -77,7 +77,7 @@ namespace SimplifiedIndexerLib.Tokens
                 {
                     Position = wordCounter++,
                     StartIndex = startIndex,
-                    Length = length
+                    Length = index - startIndex,
                 });
             }
         }

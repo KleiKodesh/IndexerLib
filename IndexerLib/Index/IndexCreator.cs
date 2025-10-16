@@ -24,7 +24,8 @@ namespace IndexerLib.Index
                 int fileCount = files.Count;
                 int currentIndex = -1;   
 
-                var wal = new WAL(memoryUsage);
+                using (var docIdStore = new DocIdStore()) 
+                using (var wal = new WAL(memoryUsage))
                 {
                     wal.ProgressTimer.Elapsed += (sender, e) =>
                         Console.WriteLine($"File Progress: {currentIndex} / {fileCount}");
@@ -38,7 +39,8 @@ namespace IndexerLib.Index
 
                             if (!string.IsNullOrWhiteSpace(content))
                             {
-                                var tokens = Tokenizer.Tokenize(content, file);
+                                var docId = docIdStore.Add(file);
+                                var tokens =  new Tokenizer(content, docId).Tokens;
                                 foreach (var token in tokens)
                                     wal.Log(token.Key, token.Value);
                             }
@@ -49,8 +51,6 @@ namespace IndexerLib.Index
                         }
                     }
                 }
-
-                wal.Dispose();
 
                 Console.WriteLine($"Indexing complete! start time: {indexStart} end time: {DateTime.Now} total time: {DateTime.Now - indexStart}");
             }
