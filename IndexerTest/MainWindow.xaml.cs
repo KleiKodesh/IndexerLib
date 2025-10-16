@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Linq;
+using SimplifiedIndexerLib.Tokens;
 
 namespace IndexerTest
 {
@@ -51,76 +52,24 @@ namespace IndexerTest
         }
 
 
-        public async void Search()
+        public void Search()
         {
-            cts?.Cancel();
-            cts?.Dispose();
-            cts = new CancellationTokenSource();
-            var token = cts.Token;
-
-            try
-            {
-                string query = SearchBox.Text;
-                short adjacency = (short)AdjacencySettingsBox.Value;
-
-                string htmlStyle = "font-family:Segoe UI; direction:rtl;";
-                WebView.NavigateToString($"<html><body style='{htmlStyle}' id='results'><ol></ol></body></html>");
-
-                using (var docIdStore = new DocIdStore())
-                {
-                    await Task.Run(() =>
-                    {
-                        var results = SearchEngine.Execute(query, adjacency);
-
-                        int liIndex = 1;
-
-                        foreach (var result in results)
-                        {
-                            SnippetBuilder.GenerateSnippets(result, docIdStore);
-
-                            foreach (var snippet in result.Snippets)
-                            {
-                                if (token.IsCancellationRequested)
-                                    return;
-
-                                string html = $@"
-<li>
-   <b>Document {result.DocId}</b><br/>
-   <small style='color:gray;'>{Path.GetFileName(result.DocPath)}</small><br/>
-   {snippet}<br/>
-</li>";
-
-                                FlushHtml(html, token);
-                                liIndex++;
-                            }
-                        }
-                    }, token);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
-        }
-
-        private void FlushHtml(string html, CancellationToken token)
-        {
-            if (token.IsCancellationRequested) return;
-
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                string js = $@"
-var container = document.querySelector('#results ol');
-container.insertAdjacentHTML('beforeend', `{html}`);";
-                WebView.ExecuteScriptAsync(js);
-            });
+            new SearchHelper().Search(cts, SearchBox.Text, (short)AdjacencySettingsBox.Value, WebView);
         }
 
 
 
         private void DebugButton_Click(object sender, RoutedEventArgs e)
         {
-           
+            var filePicker = new Microsoft.Win32.OpenFileDialog();
+            if (filePicker.ShowDialog() == true)
+            {
+                var tokens = new Tokenizer(filePicker.FileName, 0).Tokens;
+                foreach (var token in tokens)
+                {
+                    return;
+                }
+            }
         }
     }
 }

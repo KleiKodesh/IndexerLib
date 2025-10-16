@@ -25,8 +25,8 @@ namespace SimplifiedIndexerLib.IndexSearch
             int maxNeeded = result.MatchedPositions.Max(m => m.Max());
 
             // Create streaming enumerator from token stream
-            var enumerator = TokenStream.Build(docText).GetEnumerator();
-            var tokenBuffer = new List<SimpleMatch>();
+            var enumerator = new TokenStream(docText).Tokens.GetEnumerator();
+            var tokenBuffer = new List<SimpleToken>();
             int currentIndex = -1;
 
             // helper local function to ensure we have tokens up to certain index

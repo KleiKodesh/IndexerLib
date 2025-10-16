@@ -31,6 +31,10 @@ namespace SimplifiedIndexerLib.Index
 
                     foreach (var file in files)
                     {
+                        int docId;
+                         using (var idStore = new DocIdStore())
+                            docId = idStore.Add(file);
+
                         currentIndex++;
                         try
                         {
@@ -38,7 +42,7 @@ namespace SimplifiedIndexerLib.Index
 
                             if (!string.IsNullOrWhiteSpace(content))
                             {
-                                var tokens = Tokenizer.Tokenize(content, file);
+                                var tokens = new Tokenizer(content, docId).Tokens;
                                 foreach (var token in tokens)
                                     wal.Log(token.Key, token.Value);
                             }

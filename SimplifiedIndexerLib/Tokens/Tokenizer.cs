@@ -1,121 +1,94 @@
-﻿using SimplifiedIndexerLib.Index;
+﻿using SimplifiedIndexerLib.Helpers;
+using SimplifiedIndexerLib.Index;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text;
 
 namespace SimplifiedIndexerLib.Tokens
 {
     /// <summary>
-    /// Tokenizer for indexing (returns cleaned words only)
+    /// Ultra-fast tokenizer for indexing (normalized words only)
     /// </summary>
-    public static class Tokenizer
+    public class Tokenizer
     {
-        private const int MinWordLength = 2;
-        private const int MaxWordLength = 44;
+        const int MinWordLength = 2, MaxWordLength = 44;
+        readonly string _text;
+        readonly int _docId;
+        readonly Dictionary<string, Token> _tokens = new Dictionary<string, Token>(256, StringComparer.OrdinalIgnoreCase);
+        readonly StringBuilder _sb = new StringBuilder(48);
+        int _i, _len, _pos;
 
-        public static Dictionary<string, Token> Tokenize(string text, string path)
+        public Dictionary<string, Token> Tokens => _tokens;
+
+        public Tokenizer(string text, int docId)
         {
-            var tokens = new Dictionary<string, Token>(StringComparer.OrdinalIgnoreCase);
-            int docId;
+            _text = text;
+            _docId = docId;
+            _len = text.Length;
+            Tokenize();
+        }
 
-            using (var idStore = new DocIdStore())
-                docId = idStore.Add(path);
-
-            int position = 0;
-            int i = 0;
-            var sb = new StringBuilder();
-
-            while (i < text.Length)
+        void Tokenize()
+        {
+            while (_i < _len)
             {
-                char c = text[i];
+                char c = _text[_i];
+                if (c.IsHebrewOrLatinLetter())
+                    ReadWord(c);
+                else if (c == '<')
+                    SkipHtmlTag();
+                _i++;
+            }
+        }
 
-                // Start token only on a base letter or underscore (same as before)
-                if (char.IsLetter(c) || c == '_')
-                {
-                    sb.Clear();
+        void ReadWord(char first)
+        {
+            _sb.Clear();
+            _sb.Append(first);
+            _i++;
 
-                    while (i < text.Length)
-                    {
-                        c = text[i];
+            while (_i < _len)
+            {
+                char c = _text[_i];
 
-                        // allow quotes and HTML tags inside a word (skip them)
-                        if (c == '"')
-                        {
-                            i++;
-                            continue;
-                        }
-                        else if (c == '<')
-                        {
-                            int close = text.IndexOf('>', i + 1);
-                            if (close == -1) break;
-                            i = close + 1;
-                            continue;
-                        }
-
-                        // Determine Unicode category for this char
-                        var cat = CharUnicodeInfo.GetUnicodeCategory(c);
-
-                        // Accept letters, underscores and combining marks as part of the token stream.
-                        // IMPORTANT: combining marks are accepted so they won't split a token,
-                        // but we skip appending them to the "cleaned" word.
-                        if (char.IsLetter(c) || c == '_' ||
-                            cat == UnicodeCategory.NonSpacingMark ||
-                            cat == UnicodeCategory.SpacingCombiningMark ||
-                            cat == UnicodeCategory.EnclosingMark)
-                        {
-                            // Append only base letters and underscores; skip mark characters.
-                            if (cat != UnicodeCategory.NonSpacingMark &&
-                                cat != UnicodeCategory.SpacingCombiningMark &&
-                                cat != UnicodeCategory.EnclosingMark)
-                            {
-                                sb.Append(c);
-                            }
-
-                            i++;
-                        }
-                        else
-                        {
-                            // Char not part of a token -> stop token accumulation
-                            break;
-                        }
-                    }
-
-                    // normalize and trim connector chars from the ends
-                    string cleaned = sb.ToString().Normalize(NormalizationForm.FormC).Trim('_');
-
-                    if (cleaned.Length >= MinWordLength && cleaned.Length <= MaxWordLength)
-                    {
-                        if (!tokens.TryGetValue(cleaned, out var token))
-                        {
-                            token = new Token { DocId = docId };
-                            tokens[cleaned] = token;
-                        }
-
-                        token.Postions.Add(position++);
-                    }
-                }
+                // IsDiacritic htmltags and " inside a word are advanced but not appended
+                if (c.IsHebrewOrLatinLetter())
+                    _sb.Append(c);
+                else if (c == '<')
+                    SkipHtmlTag();
+                else if (c.IsDiacritic())
+                { /* skip */ }
+                else if (c == '\"')
+                { /* skip */ }
                 else
-                {
-                    // Skip tags/quotes outside tokens too
-                    if (c == '<')
-                    {
-                        int close = text.IndexOf('>', i + 1);
-                        if (close == -1) break;
-                        i = close + 1;
-                    }
-                    else if (c == '"')
-                    {
-                        i++;
-                    }
-                    else
-                    {
-                        i++;
-                    }
-                }
+                    break;
+
+                _i++;
             }
 
-            return tokens;
+            AddToken();
+        }
+
+        void AddToken()
+        {
+            int len = _sb.Length;
+            if (len < MinWordLength || len > MaxWordLength)
+                return;
+
+            string w = _sb.ToString().Trim('\"');
+            Token t;
+            if (!_tokens.TryGetValue(w, out t))
+            {
+                t = new Token { DocId = _docId };
+                _tokens[w] = t;
+            }
+            t.Postions.Add(_pos++);
+        }
+
+        void SkipHtmlTag()
+        {
+            _i++;
+            while (_i < _len && _text[_i] != '>') _i++;
         }
     }
 }

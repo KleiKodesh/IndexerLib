@@ -1,112 +1,91 @@
-﻿namespace SimplifiedIndexerLib.Tokens
-{
-    using System.Collections.Generic;
-    using System.Globalization;
-    using System.Text;
+﻿using SimplifiedIndexerLib.Helpers;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Text;
 
-    public class SimpleMatch
+namespace SimplifiedIndexerLib.Tokens
+{
+    public readonly struct SimpleToken
     {
-        public int Index { get; set; }
-        public int Length { get; set; }
+        public int Index { get; }
+        public int Length { get; }
+
+        public SimpleToken(int index, int length)
+        {
+            Index = index;
+            Length = length;
+        }
     }
 
     /// <summary>
-    /// Token stream for snippet building (returns original offsets)
-    /// Matches the same word detection rules as Tokenizer
+    /// Ultra-fast token stream for Hebrew + English text.
+    /// Skips HTML tags and diacritics. Returns only offsets (index + length).
     /// </summary>
-    public static class TokenStream
+    public class TokenStream
     {
-        private const int MinWordLength = 2;
-        private const int MaxWordLength = 44;
+        const int MinWordLength = 2, MaxWordLength = 44;
+        readonly string _text;
+        int _i, _len;
 
-        public static List<SimpleMatch> Build(string text)
+
+        readonly List<SimpleToken> _tokens = new List<SimpleToken>(25000);
+        public List<SimpleToken> Tokens => _tokens;
+
+        public TokenStream(string text)
         {
-            var result = new List<SimpleMatch>();
-            var sb = new StringBuilder();
-            int i = 0;
+            _text = text;
+            _len = text.Length;
+            Tokenize();
+        }
 
-            while (i < text.Length)
+        void Tokenize()
+        {
+            while (_i < _len)
             {
-                char c = text[i];
+                char c = _text[_i];
+                if (c.IsHebrewOrLatinLetter())
+                    ReadWord(c);
+                else if (c == '<')
+                    SkipHtmlTag();
+                _i++;
+            }
+        }
 
-                // start token
-                if (char.IsLetter(c) || c == '_')
-                {
-                    int wordStart = i;
-                    sb.Clear();
+        void ReadWord(char first)
+        {
+            int index = _i;
+            int length = 1;
+            _i++;
 
-                    while (i < text.Length)
-                    {
-                        c = text[i];
+            while (_i < _len)
+            {
+                char c = _text[_i];
 
-                        if (c == '"')
-                        {
-                            i++;
-                            continue;
-                        }
-                        else if (c == '<')
-                        {
-                            int close = text.IndexOf('>', i + 1);
-                            if (close == -1) break;
-                            i = close + 1;
-                            continue;
-                        }
-
-                        var cat = CharUnicodeInfo.GetUnicodeCategory(c);
-
-                        if (char.IsLetter(c) || c == '_' ||
-                            cat == UnicodeCategory.NonSpacingMark ||
-                            cat == UnicodeCategory.SpacingCombiningMark ||
-                            cat == UnicodeCategory.EnclosingMark)
-                        {
-                            // append only base letters/underscores
-                            if (cat != UnicodeCategory.NonSpacingMark &&
-                                cat != UnicodeCategory.SpacingCombiningMark &&
-                                cat != UnicodeCategory.EnclosingMark)
-                            {
-                                sb.Append(c);
-                            }
-                            i++;
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-
-                    // normalize and trim underscores from edges
-                    string cleaned = sb.ToString().Normalize(NormalizationForm.FormC).Trim('_');
-
-                    if (cleaned.Length >= MinWordLength && cleaned.Length <= MaxWordLength)
-                    {
-                        result.Add(new SimpleMatch
-                        {
-                            Index = wordStart,
-                            Length = i - wordStart
-                        });
-                    }
-                }
+                // IsDiacritic htmltags and " inside a word are advanced but not appended
+                if (c.IsHebrewOrLatinLetter())
+                    length++;
+                else if (c == '<')
+                    SkipHtmlTag();
+                else if (c.IsDiacritic())
+                { /* skip */ }
+                else if (c == '\"')
+                { /* skip */ }
                 else
-                {
-                    // skip HTML/quotes outside words as well
-                    if (c == '<')
-                    {
-                        int close = text.IndexOf('>', i + 1);
-                        if (close == -1) break;
-                        i = close + 1;
-                    }
-                    else if (c == '"')
-                    {
-                        i++;
-                    }
-                    else
-                    {
-                        i++;
-                    }
-                }
+                    break;
+
+                _i++;
             }
 
-            return result;
+            if (length >= MinWordLength && length <= MaxWordLength)
+                _tokens.Add(new SimpleToken(index, _i - index));
+        }
+
+        void SkipHtmlTag()
+        {
+            _i++;
+            while (_i < _len && _text[_i] != '>') _i++;
         }
     }
 }
+

@@ -3,3 +3,4 @@
 - filter by doc by first getting shortest list
 - compact tokenlists into one mega token not bycompacting tokens but rsather by reading them all as one long token but then will need to dort positions yet this can be done at snippet time
 - create pdf text store
+-somehow use aprllelism to solve token stream time
