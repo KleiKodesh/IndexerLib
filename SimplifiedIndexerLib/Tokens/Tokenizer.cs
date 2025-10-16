@@ -3,6 +3,7 @@ using SimplifiedIndexerLib.Index;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace SimplifiedIndexerLib.Tokens
 {
@@ -16,7 +17,7 @@ namespace SimplifiedIndexerLib.Tokens
         readonly int _docId;
         readonly Dictionary<string, Token> _tokens = new Dictionary<string, Token>(256, StringComparer.OrdinalIgnoreCase);
         readonly StringBuilder _sb = new StringBuilder(48);
-        int _i, _len, _pos;
+        int index, WordCounter;
 
         public Dictionary<string, Token> Tokens => _tokens;
 
@@ -24,20 +25,20 @@ namespace SimplifiedIndexerLib.Tokens
         {
             _text = text;
             _docId = docId;
-            _len = text.Length;
             Tokenize();
         }
 
         void Tokenize()
         {
-            while (_i < _len)
+            while (index < _text.Length)
             {
-                char c = _text[_i];
+                char c = _text[index];
                 if (c.IsHebrewOrLatinLetter())
                     ReadWord(c);
                 else if (c == '<')
                     SkipHtmlTag();
-                _i++;
+                else
+                    index++;
             }
         }
 
@@ -45,11 +46,11 @@ namespace SimplifiedIndexerLib.Tokens
         {
             _sb.Clear();
             _sb.Append(first);
-            _i++;
+            index++;
 
-            while (_i < _len)
+            while (index < _text.Length)
             {
-                char c = _text[_i];
+                char c = _text[index];
 
                 // IsDiacritic htmltags and " inside a word are advanced but not appended
                 if (c.IsHebrewOrLatinLetter())
@@ -63,10 +64,11 @@ namespace SimplifiedIndexerLib.Tokens
                 else
                     break;
 
-                _i++;
+                index++;
             }
 
             AddToken();
+            index++;
         }
 
         void AddToken()
@@ -82,13 +84,13 @@ namespace SimplifiedIndexerLib.Tokens
                 t = new Token { DocId = _docId };
                 _tokens[w] = t;
             }
-            t.Postions.Add(_pos++);
+            t.Postions.Add(WordCounter++);
         }
 
         void SkipHtmlTag()
         {
-            _i++;
-            while (_i < _len && _text[_i] != '>') _i++;
+            index++;
+            while (index < _text.Length && _text[index] != '>') index++;
         }
     }
 }

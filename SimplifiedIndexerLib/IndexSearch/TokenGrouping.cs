@@ -34,11 +34,12 @@ namespace SimplifiedIndexerLib.IndexSearch
             }
 
             // keep only docs that appear in all tokenLists
-            foreach (var key in result.Keys.ToList())
-                if (result[key].Count != requiredCount)
-                    result.Remove(key);
+            var filtered = result
+                .Where(r => r.Value.Count >= requiredCount)
+                .OrderBy(r => r.Key)
+                .ToDictionary(r => r.Key, r => r.Value);
 
-            return result;
+            return filtered;
         }
 
         static Dictionary<int, List<int>> GroupById(List<Token> tokenList)

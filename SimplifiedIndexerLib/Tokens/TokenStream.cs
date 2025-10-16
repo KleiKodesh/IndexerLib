@@ -1,91 +1,111 @@
 ﻿using SimplifiedIndexerLib.Helpers;
+using SimplifiedIndexerLib.IndexSearch;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 
 namespace SimplifiedIndexerLib.Tokens
 {
-    public readonly struct SimpleToken
-    {
-        public int Index { get; }
-        public int Length { get; }
-
-        public SimpleToken(int index, int length)
-        {
-            Index = index;
-            Length = length;
-        }
-    }
-
-    /// <summary>
-    /// Ultra-fast token stream for Hebrew + English text.
-    /// Skips HTML tags and diacritics. Returns only offsets (index + length).
-    /// </summary>
     public class TokenStream
     {
         const int MinWordLength = 2, MaxWordLength = 44;
-        readonly string _text;
-        int _i, _len;
+        string _text;
+        Dictionary<int, List<Postings>> _postingsByPosition;
+        List<int> _positions;
+        int _lastTarget;
+        int index, wordCounter, wordLength;
 
-
-        readonly List<SimpleToken> _tokens = new List<SimpleToken>(25000);
-        public List<SimpleToken> Tokens => _tokens;
-
-        public TokenStream(string text)
+        public void Tokenize(SearchResult searchResult, string text)
         {
             _text = text;
-            _len = text.Length;
-            Tokenize();
+            index = 0;
+            wordCounter = -1;
+            wordLength = 0;
+
+            // Group postings by position
+            _postingsByPosition = searchResult.Matches
+                .SelectMany(a => a)
+                .GroupBy(p => p.Position)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            if (_postingsByPosition.Count == 0)
+                return;
+
+            _positions = _postingsByPosition.Keys.OrderBy(p => p).ToList();
+            _lastTarget = _positions[_positions.Count - 1];
+
+            PopulateOffsets();
         }
 
-        void Tokenize()
+        void PopulateOffsets()
         {
-            while (_i < _len)
+            while (index < _text.Length && wordCounter <= _lastTarget)
             {
-                char c = _text[_i];
+                char c = _text[index];
                 if (c.IsHebrewOrLatinLetter())
                     ReadWord(c);
                 else if (c == '<')
                     SkipHtmlTag();
-                _i++;
+                else
+                    index++;
             }
         }
 
         void ReadWord(char first)
         {
-            int index = _i;
-            int length = 1;
-            _i++;
+            int startIndex = index;
+            index++;
+            wordLength = 1;
 
-            while (_i < _len)
+            while (index < _text.Length)
             {
-                char c = _text[_i];
-
-                // IsDiacritic htmltags and " inside a word are advanced but not appended
+                char c = _text[index];
                 if (c.IsHebrewOrLatinLetter())
-                    length++;
+                {
+                    wordLength++;
+                    index++;
+                }
                 else if (c == '<')
                     SkipHtmlTag();
-                else if (c.IsDiacritic())
-                { /* skip */ }
-                else if (c == '\"')
-                { /* skip */ }
+                else if (c.IsDiacritic() || c == '\"')
+                    index++;
                 else
                     break;
-
-                _i++;
             }
 
-            if (length >= MinWordLength && length <= MaxWordLength)
-                _tokens.Add(new SimpleToken(index, _i - index));
+            AddToken(startIndex);
+        }
+
+        void AddToken(int start)
+        {
+            if (wordLength < MinWordLength || wordLength > MaxWordLength)
+                return;
+
+            wordCounter++;
+            if (wordCounter > _lastTarget)
+            {
+                index = _text.Length;
+                return;
+            }
+
+            List<Postings> postings;
+            if (_postingsByPosition.TryGetValue(wordCounter, out postings))
+            {
+                int len = index - start;
+                for (int i = 0; i < postings.Count; i++)
+                {
+                    postings[i].StartIndex = start;
+                    postings[i].Length = len;
+                }
+            }
         }
 
         void SkipHtmlTag()
         {
-            _i++;
-            while (_i < _len && _text[_i] != '>') _i++;
+            index++;
+            while (index < _text.Length && _text[index] != '>')
+                index++;
+            index++;
         }
     }
 }
-

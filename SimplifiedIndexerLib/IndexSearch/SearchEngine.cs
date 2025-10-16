@@ -15,11 +15,6 @@ namespace SimplifiedIndexerLib.IndexSearch
             //var wordLists = GenerateWordLists(query);
             var wordLists = QueryParser.GenerateWordPositions(query);
 
-            if (wordLists.Count > 3)
-                adjacency = (short)(adjacency * (wordLists.Count - 2) + wordLists.Count);
-            else
-                adjacency = (short)(adjacency + wordLists.Count);
-
             Console.WriteLine("Querying index..." + DateTime.Now);
 
             List<List<Token>> tokenLists;
@@ -32,7 +27,8 @@ namespace SimplifiedIndexerLib.IndexSearch
             Console.WriteLine("Generating results..." + DateTime.Now);
             var results = SearchMatcher.OrderedAdjacencyMatch(docs, adjacency);
 
-            Console.WriteLine("Search complete. Elapsed: " + (DateTime.Now - startTime));
+            Console.WriteLine("Index Lookup Complete. Elapsed: " + (DateTime.Now - startTime));
+            Console.WriteLine("Streaming results...");
             return results;
         }
     }

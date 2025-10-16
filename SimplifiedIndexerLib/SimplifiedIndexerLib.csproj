@@ -98,6 +98,7 @@
     <Compile Include="Tokens\Serializer.cs" />
     <Compile Include="Tokens\Token.cs" />
     <Compile Include="Tokens\Tokenizer.cs" />
+    <Compile Include="Tokens\TokenStream - Copy.cs" />
     <Compile Include="Tokens\TokenStream.cs" />
   </ItemGroup>
   <ItemGroup>

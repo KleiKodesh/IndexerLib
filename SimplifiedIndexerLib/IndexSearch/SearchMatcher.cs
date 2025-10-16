@@ -7,7 +7,12 @@ namespace SimplifiedIndexerLib.IndexSearch
         public static IEnumerable<SearchResult> OrderedAdjacencyMatch(
             Dictionary<int, List<List<int>>> docs, int adjacency)
         {
-            adjacency--; // adjust adjacency
+            /*  Adjust adjacency by +1 because position differences are off by one:
+                For example, if two words are adjacent (positions 10 and 11),
+                their distance is 1, not 0. So user adjacency=0 (exact phrase)
+                should allow position diff=1. This keeps "adjacency" meaning
+                consistent with "number of words between terms".    */
+            adjacency++; 
 
             foreach (var docEntry in docs) // no need to sort docs
             {
@@ -15,11 +20,7 @@ namespace SimplifiedIndexerLib.IndexSearch
                 if (postingsLists.Count == 0)
                     continue;
 
-                var resultForDoc = new SearchResult
-                {
-                    DocId = docEntry.Key,
-                    MatchedPositions = new List<int[]>()
-                };
+                var resultForDoc = new SearchResult { DocId = docEntry.Key  };
 
                 var firstList = postingsLists[0];
                 int[] indices = new int[postingsLists.Count]; // per postings list pointers
@@ -28,8 +29,8 @@ namespace SimplifiedIndexerLib.IndexSearch
                 {
                     bool valid = true;
                     int prevPos = startPos;
-                    var match = new int[postingsLists.Count];
-                    match[0] = startPos;
+                    var match = new Postings[postingsLists.Count];
+                    match[0] = new Postings { Position = startPos };
 
                     // sequentially advance each postings pointer
                     for (int i = 1; i < postingsLists.Count; i++)
@@ -47,13 +48,13 @@ namespace SimplifiedIndexerLib.IndexSearch
                             break;
                         }
 
-                        match[i] = plist[idx];
+                        match[i] = new Postings { Position = plist[idx] };
                         prevPos = plist[idx];
                         indices[i] = idx; // store position for reuse
                     }
 
                     if (valid)
-                        resultForDoc.MatchedPositions.Add(match);
+                        resultForDoc.Matches.Add(match);
                 }
 
                 yield return resultForDoc;
