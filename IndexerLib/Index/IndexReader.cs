@@ -1,4 +1,6 @@
-﻿using System;
+﻿using IndexerLib.Helpers;
+using IndexerLib.Tokens;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -107,21 +109,17 @@ namespace IndexerLib.Index
             }
         }
 
+        public IEnumerable<KeyValuePair<IndexKey, IEnumerable<Token>>> EnumerateTokenGroups()
+        {
+            foreach (var key in GetAllKeys())
+            {
+                byte[] data = ReadBlock(key.Offset, key.Length);
+                yield return new KeyValuePair<IndexKey, IEnumerable<Token>>
+                    (key, Serializer.DeserializeTokenGroup(data));
+            }
+        }
 
-        //public IEnumerable<KeyValuePair<string, List<Token>>> GetAllTokens()
-        //{
-        //    int recordCount = (int)_indexLength / RecordSize;
 
-        //    var words = WordsStore.GetWords().ToList();
-
-        //    for (int i = 0; i < recordCount; i++)
-        //    {
-        //        var data = GetDataByIndex(i);
-        //        var tokens = Serializer.DeserializeTokenGroup(data);
-
-        //        yield return new KeyValuePair<string, List<Token>>(words[i], tokens);
-        //    }
-        //}
 
         public void Dispose()
         {

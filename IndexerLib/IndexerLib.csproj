@@ -121,6 +121,7 @@
     <Compile Include="IndexSearch\SearchResult.cs" />
     <Compile Include="IndexSearch\SnippetBuilder.cs" />
     <Compile Include="IndexSearch\TokenGrouping.cs" />
+    <Compile Include="Index\Deletion.cs" />
     <Compile Include="Index\DocIdStore.cs" />
     <Compile Include="Index\IndexCreator.cs" />
     <Compile Include="Index\IndexerBase.cs" />

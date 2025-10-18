@@ -29,12 +29,14 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="auto"/>
             </Grid.ColumnDefinitions>
 
             <Grid.RowDefinitions>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
+            
             <TextBox x:Name="SearchBox" 
                      Margin="5" 
                      Padding="3"
@@ -43,6 +45,15 @@
                     Grid.Column="1" 
                     Content="חיפוש" 
                     Click="SearchButton_Click"/>
+            
+            <StackPanel Orientation="Horizontal" Grid.Column="2">
+                <TextBlock Text="מרחק בין מילים:" 
+                VerticalAlignment="Center" Margin="5"/>
+                <local:UpDownTextBox x:Name="AdjacencySettingsBox"
+                                 Width="40"  Margin="5" 
+                                 VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                                 Value="2"/>
+            </StackPanel>
 
             <StackPanel Orientation="Horizontal"
                         Grid.Row="1"
@@ -50,17 +61,18 @@
                 <Button x:Name="CreateIndexButton" 
                     Content="צור אינדקס"
                     Click="CreateIndexButton_Click"/>
+                <Button x:Name="DeleteFilesButon" 
+                        Content="הסר קבצים מהאינדקס"
+                        Click="DeleteFilesButon_Click"/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal"
+                         Grid.Column="2" Grid.Row="1">
                 <TextBlock Text="ניצול משאבי מחשב:" 
-                       VerticalAlignment="Center" Margin="5"/>
+         VerticalAlignment="Center" Margin="5"/>
                 <local:UpDownTextBox x:Name="MemoryUsageBox"
-                            Width="40" Margin="5" 
-                            Text="500" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-                <TextBlock Text="מרחק בין מילים:" 
-                            VerticalAlignment="Center" Margin="5"/>
-                <local:UpDownTextBox x:Name="AdjacencySettingsBox"
-                    Width="40"
-                    Margin="5" Text="2" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-               
+              Width="40" Margin="5" 
+              Text="500" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
             </StackPanel>
         </Grid>
 

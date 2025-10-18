@@ -29,33 +29,50 @@ namespace IndexerLib.Tokens
             using (var stream = new MemoryStream())
             using (var writer = new MyBinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
             {
-                // Write token-level metadata
-                writer.Write7BitEncodedInt(token.DocId);
-                writer.Write7BitEncodedInt(token.Postings.Count); // Store posting count for decoding
+                Serialize(writer, token);
+                return stream.ToArray();
+            }
+        }
 
-                // Ensure postings are ordered for delta encoding efficiency
-                var postings = token.Postings.OrderBy(x => x.Position);
-
-                // Initialize delta reference values
-                int prevPos = 0;
-                int prevStart = 0;
-
-                foreach (var p in postings)
-                {
-                    // Write deltas: store value differences rather than absolute values
-                    // Example: if current position = 105 and previous = 100, store 5 instead of 105
-                    writer.Write7BitEncodedInt(p.Position - prevPos);
-                    writer.Write7BitEncodedInt(p.Index - prevStart);
-                    writer.Write7BitEncodedInt(p.Length); // Length stored as-is (no delta needed)
-
-                    // Update reference values
-                    prevPos = p.Position;
-                    prevStart = p.Index;
-                }
+        public static byte[] SerializeTokenGroup(List<Token> tokens)
+        {
+            using (var stream = new MemoryStream())
+            using (var writer = new MyBinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
+            {
+                foreach (var token in tokens)
+                    Serialize(writer, token);
 
                 return stream.ToArray();
             }
         }
+
+        static void Serialize(MyBinaryWriter writer, Token token)
+        {
+            // Write token-level metadata
+            writer.Write7BitEncodedInt(token.DocId);
+            writer.Write7BitEncodedInt(token.Postings.Count); // Store posting count for decoding
+
+            // Ensure postings are ordered for delta encoding efficiency
+            var postings = token.Postings.OrderBy(x => x.Position);
+
+            // Initialize delta reference values
+            int prevPos = 0;
+            int prevStart = 0;
+
+            foreach (var p in postings)
+            {
+                // Write deltas: store value differences rather than absolute values
+                // Example: if current position = 105 and previous = 100, store 5 instead of 105
+                writer.Write7BitEncodedInt(p.Position - prevPos);
+                writer.Write7BitEncodedInt(p.Index - prevStart);
+                writer.Write7BitEncodedInt(p.Length); // Length stored as-is (no delta needed)
+
+                // Update reference values
+                prevPos = p.Position;
+                prevStart = p.Index;
+            }
+        }
+
 
         /// <summary>
         /// Deserializes a group of serialized <see cref="Token"/> objects from a single binary block.

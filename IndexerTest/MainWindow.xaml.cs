@@ -203,5 +203,10 @@ namespace IndexerTest
             //    }
             //}
         }
+
+        private void DeleteFilesButon_Click(object sender, RoutedEventArgs e)
+        {
+            Deletion.Execute();
+        }
     }
 }
