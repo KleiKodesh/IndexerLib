@@ -7,12 +7,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using System.Linq;
-using IndexerLib.Tokens;
 using IndexerLib.Helpers;
 
 namespace IndexerTest
 {
+
     public partial class MainWindow : Window
     {
 
@@ -55,70 +54,74 @@ namespace IndexerTest
 
         public async void Search()
         {
+            Console.WriteLine("Search Start...");
             string query = SearchBox.Text;
             var adjacency = (short)AdjacencySettingsBox.Value;
             var start = DateTime.Now;
 
-            _cts?.Cancel();
-            _cts?.Dispose();
-            _cts = new CancellationTokenSource();
-            var token = _cts.Token;
-
-            string htmlStyle = "font-family:Segoe UI; direction:rtl; text-align: justify;";
-            WebView.NavigateToString($"<html><body style='{htmlStyle}' id='results'><ol></ol></body></html>");
-
-            try
+            using (new ConsoleSpinner())
             {
-                await Task.Run(() =>
+                _cts?.Cancel();
+                _cts?.Dispose();
+                _cts = new CancellationTokenSource();
+                var token = _cts.Token;
+
+                string htmlStyle = "font-family:Segoe UI; direction:rtl; text-align: justify;";
+                WebView.NavigateToString($"<html><body style='{htmlStyle}' id='results'><ol></ol></body></html>");
+
+                try
                 {
-                    using (var docIdStore = new DocIdStore())
+                    await Task.Run(() =>
                     {
-                        var results = SearchEngine.Execute(query, adjacency).ToList();
-
-                        foreach (var result in results)
+                        using (var docIdStore = new DocIdStore())
                         {
-                            token.ThrowIfCancellationRequested();
+                            var results = StreamingSearch.Execute(query, adjacency);
 
-                            result.DocPath = docIdStore.GetPathById(result.DocId);
-                            //string text = TextExtractor.GetText(result.DocPath);
-                            SnippetBuilder.GenerateSnippets(result, docIdStore);
-
-                            foreach (var snippet in result.Snippets)
+                            foreach (var result in results)
                             {
                                 token.ThrowIfCancellationRequested();
 
-                                string html = $@"
+                                result.DocPath = docIdStore.GetPathById(result.DocId);
+                                //string text = TextExtractor.GetText(result.DocPath);
+                                SnippetBuilder.GenerateSnippets(result, docIdStore);
+
+                                foreach (var snippet in result.Snippets)
+                                {
+                                    token.ThrowIfCancellationRequested();
+
+                                    string html = $@"
         <li>
             <b>{Path.GetFileName(result.DocPath)}</b><br/>
             <small style='color:gray;'>Document {result.DocId}</small><br/>
             {snippet}<br/>
         </li>";
 
-                                Application.Current.Dispatcher.Invoke(() =>
-                                {
-                                    if (token.IsCancellationRequested) return;
+                                    Application.Current.Dispatcher.Invoke(() =>
+                                    {
+                                        if (token.IsCancellationRequested) return;
 
-                                    string js = $@"
+                                        string js = $@"
         var container = document.querySelector('#results ol');
         container.insertAdjacentHTML('beforeend', `{html}`);";
 
-                                    WebView?.ExecuteScriptAsync(js);
-                                });
+                                        WebView?.ExecuteScriptAsync(js);
+                                    });
+                                }
                             }
                         }
-                    }
-                }, token);
-            }
-            catch (OperationCanceledException)
-            {
-                // search cancelled — do nothing
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Search error: " + ex.Message);
-            }
+                    }, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    // search cancelled — do nothing
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Search error: " + ex.Message);
+                }
 
-            Console.WriteLine("Total Search Time: " + (DateTime.Now - start));
+                Console.WriteLine("Total Search Time: " + (DateTime.Now - start));
+            }
         }
 
 

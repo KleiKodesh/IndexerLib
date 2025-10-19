@@ -72,7 +72,7 @@
          VerticalAlignment="Center" Margin="5"/>
                 <local:UpDownTextBox x:Name="MemoryUsageBox"
               Width="40" Margin="5" 
-              Text="500" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+              Value="2500" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
             </StackPanel>
         </Grid>
 

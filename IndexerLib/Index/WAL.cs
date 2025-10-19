@@ -2,6 +2,7 @@
 using IndexerLib.Tokens;
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -17,14 +18,23 @@ namespace IndexerLib.Index
         public readonly System.Timers.Timer ProgressTimer;
 
         // memory usage 500 mb default
-        public WAL(int memoryCap = 500)
+        public WAL(int memoryCapMB = 500)
         {
-            memoryCap = Math.Max(5, memoryCap / 15);
-            _memoryCapInBytes = memoryCap * 1024L * 1024L;
-            _streams = new ConcurrentDictionary<string, MemoryStream>();
+            var totalMemory = GetAvailableMemoryMB();
+            // Limit cap to at most 60% of available memory
+            var safeCap = (int)Math.Min(memoryCapMB, totalMemory * 0.6);
+            safeCap = Math.Max(5, safeCap / 15); // your scaling rule
+            _memoryCapInBytes = safeCap * 1024L * 1024L;
 
+            _streams = new ConcurrentDictionary<string, MemoryStream>();
             ProgressTimer = new System.Timers.Timer(2000);
             ProgressTimer.Start();
+        }
+
+        static double GetAvailableMemoryMB()
+        {
+            using (var pc = new PerformanceCounter("Memory", "Available MBytes"))
+                return pc.NextValue();
         }
 
         public void Log(string key, Token token)

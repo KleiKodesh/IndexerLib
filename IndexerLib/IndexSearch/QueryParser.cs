@@ -9,22 +9,22 @@ namespace IndexerLib.IndexSearch
     public class TermQuery
     {
         public string Term { get; }
-        public List<int> Positions { get; }
+        public List<int> IndexPositions { get; }
 
         public TermQuery(string term)
         {
             Term = term;
-            Positions = new List<int>();
+            IndexPositions = new List<int>();
         }
     }
 
     public class QueryParser
     {
-        public static List<TermQuery> GenerateWordPositions(string query)
+        public static TermQuery[] GenerateWordPositions(string query)
         {
             var terms = query.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
                              .Select(t => new TermQuery(t))
-                             .ToList();
+                             .ToArray();
 
             int index = 0;
             foreach (var word in WordsStore.GetWords())
@@ -32,7 +32,7 @@ namespace IndexerLib.IndexSearch
                 foreach (var tq in terms)
                 {
                     if (MatchWord(tq.Term, word))
-                        tq.Positions.Add(index);
+                        tq.IndexPositions.Add(index);
                 }
                 index++;
             }

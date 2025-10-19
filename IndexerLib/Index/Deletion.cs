@@ -21,50 +21,53 @@ namespace IndexerLib.Index
         /// </summary>
         public static void Execute()
         {
-            List<string> files = SelectFiles();
-            if (files == null || files.Count == 0)
+            var files = SelectFiles();
+            if (files == null || files.Length == 0)
                 return;
 
+            var startTime = DateTime.Now;
             Console.WriteLine("Deleting Files...");
-            
+
             // Convert file paths → DocIds
             var docIdsToDelete = new HashSet<int>();
-            using(new ConsoleSpinner())
-            using (var docIdStore = new DocIdStore())
+            using (new ConsoleSpinner())
             {
-                foreach (var file in files)
+                using (var docIdStore = new DocIdStore())
                 {
-                    int id = docIdStore.GetIdByPath(file);
-                    if (id > 0)
-                        docIdsToDelete.Add(id);
+                    foreach (var file in files)
+                    {
+                        int id = docIdStore.GetIdByPath(file);
+                        if (id > 0)
+                            docIdsToDelete.Add(id);
+                    }
                 }
+
+                string oldIndexPath;
+
+                using (var reader = new IndexReader())
+                using (var writer = new IndexWriter())
+                {
+                    oldIndexPath = reader.TokenStorePath;
+
+                    foreach (var entry in reader.EnumerateTokenGroups())
+                    {
+                        var key = entry.Key;
+                        var tokenGroup = entry.Tokens.Where(t => !docIdsToDelete.Contains(t.DocId)).ToArray();
+                        var data = Serializer.SerializeTokenGroup(tokenGroup);
+                        writer.Put(key.Hash, data);
+                    }
+                }
+
+                File.Delete(oldIndexPath);
+
+                WordsStore.SortWordsByIndex();
             }
 
-            string oldIndexPath;
-
-            using (var reader = new IndexReader())
-            using (var writer = new IndexWriter())
-            {
-                oldIndexPath = reader.TokenStorePath;
-
-                foreach (var kvp in reader.EnumerateTokenGroups())
-                {
-                    var key = kvp.Key;
-                    var tokenGroup = kvp.Value.Where(t=> !docIdsToDelete.Contains(t.DocId)).ToList();
-                    var data = Serializer.SerializeTokenGroup(tokenGroup);
-                    writer.Put(key.Hash, data);
-                }
-            }
-
-            File.Delete(oldIndexPath);
-
-            WordsStore.SortWordsByIndex();
-
-            Console.WriteLine("Deletiion complete!");
+            Console.WriteLine("Deletion complete! Time elapsed: " + (DateTime.Now - startTime));
         }
 
 
-        static List<string> SelectFiles()
+        static string[] SelectFiles()
         {
             var dialog = new OpenFileDialog
             {
@@ -75,13 +78,13 @@ namespace IndexerLib.Index
 
             if (dialog.ShowDialog() == DialogResult.OK)
             {
-                var selectedFiles = dialog.FileNames.ToList();
-                System.Diagnostics.Debug.WriteLine($"Selected {selectedFiles.Count} files.");
+                var selectedFiles = dialog.FileNames;
+                System.Diagnostics.Debug.WriteLine($"Selected {selectedFiles.Length} files.");
 
                 return selectedFiles;
             }
 
-            return new List<string>();
+            return new string[0];
         }
     }
 }

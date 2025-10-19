@@ -45,6 +45,6 @@ namespace IndexerLib.Index
 
         }
 
-        public List<string> TokenStoreFileList() => Directory.GetFiles(IndexDirectoryPath, "*.tks").ToList();
+        public string[] TokenStoreFileList() => Directory.GetFiles(IndexDirectoryPath, "*.tks");
     }
 }

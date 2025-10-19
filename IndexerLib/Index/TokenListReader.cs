@@ -8,12 +8,12 @@ namespace IndexerLib.Index
 {
     public class TokenListReader : IndexReader
     {
-        public List<List<Token>> GetByIndex(List<TermQuery> indexLists)
+        public List<List<Token>> GetByIndex(TermQuery[] indexLists)
         {
             // Pre-allocate result lists
-            var tokenLists = new List<List<Token>>(indexLists.Count);
-            for (int i = 0; i < indexLists.Count; i++)
-                tokenLists.Add(new List<Token>(indexLists[i].Positions.Count));
+            var tokenLists = new List<List<Token>>(indexLists.Length);
+            for (int i = 0; i < indexLists.Length; i++)
+                tokenLists.Add(new List<Token>(indexLists[i].IndexPositions.Count));
 
             // Build request map: pos → list indices
             var requestMap = BuildRequestMap(indexLists);
@@ -32,17 +32,17 @@ namespace IndexerLib.Index
             return tokenLists;
         }
 
-        private static Dictionary<int, List<int>> BuildRequestMap(List<TermQuery> indexLists)
+        private static Dictionary<int, List<int>> BuildRequestMap(TermQuery[] indexLists)
         {
             int estimatedSize = 0;
-            for (int i = 0; i < indexLists.Count; i++)
-                estimatedSize += indexLists[i].Positions.Count;
+            for (int i = 0; i < indexLists.Length; i++)
+                estimatedSize += indexLists[i].IndexPositions.Count;
 
             var requestMap = new Dictionary<int, List<int>>(estimatedSize);
 
-            for (int listIdx = 0; listIdx < indexLists.Count; listIdx++)
+            for (int listIdx = 0; listIdx < indexLists.Length; listIdx++)
             {
-                var positions = indexLists[listIdx].Positions;
+                var positions = indexLists[listIdx].IndexPositions;
                 for (int j = 0; j < positions.Count; j++)
                 {
                     int pos = positions[j];

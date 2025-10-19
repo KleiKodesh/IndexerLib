@@ -39,7 +39,7 @@ namespace IndexerLib.IndexSearch
             }
 
             // keep only docs that appear in all tokenLists (intersection)
-            foreach (var key in result.Keys.ToList())
+            foreach (var key in result.Keys.ToArray())
                 if (result[key].Count != requiredCount)
                     result.Remove(key);
 

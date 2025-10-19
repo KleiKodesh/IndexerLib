@@ -14,17 +14,19 @@ namespace IndexerLib.Tokens
         const int MinWordLength = 2, MaxWordLength = 44;
         readonly string _text;
         readonly int _docId;
-        readonly Dictionary<string, Token> _tokens = new Dictionary<string, Token>(256, StringComparer.OrdinalIgnoreCase);
+        readonly Dictionary<string, (Token Token, List<Postings> Postings)> _tokens;
         readonly StringBuilder _sb = new StringBuilder(48);
         int index;
         int wordCounter;
 
-        public Dictionary<string, Token> Tokens => _tokens;
+        public Dictionary<string, (Token Token, List<Postings> Postings)> Tokens => _tokens;
 
         public Tokenizer(string text, int docId)
         {
             _text = text;
             _docId = docId;
+            _tokens = new Dictionary<string, (Token, List<Postings>)>(256, StringComparer.OrdinalIgnoreCase);
+
             Tokenize();
         }
 
@@ -40,6 +42,9 @@ namespace IndexerLib.Tokens
                 else
                     index++;
             }
+
+            foreach (var entry in Tokens)
+                entry.Value.Token.Postings = entry.Value.Postings.ToArray();
         }
 
         void ReadWord()
@@ -67,13 +72,13 @@ namespace IndexerLib.Tokens
             if (_sb.Length >= MinWordLength && _sb.Length <= MaxWordLength)
             {
                 string w = _sb.ToString().Trim('\"');
-                if (!_tokens.TryGetValue(w, out var token))
+                if (!_tokens.TryGetValue(w, out var entry))
                 {
-                    token = new Token { DocId = _docId };
-                    _tokens[w] = token;
+                    entry = (new Token { DocId = _docId }, new List<Postings>());
+                    _tokens[w] = entry;
                 }
 
-                token.Postings.Add(new Postings
+                entry.Postings.Add(new Postings
                 {
                     Position = wordCounter++,
                     Index = startIndex,
@@ -81,6 +86,8 @@ namespace IndexerLib.Tokens
                 });
             }
         }
+
+
 
         void SkipHtmlTag()
         {

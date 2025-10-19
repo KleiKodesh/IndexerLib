@@ -15,7 +15,7 @@ namespace IndexerLib.Index
             Console.WriteLine($"Merge Start: {startTime}");
 
             var files = new IndexerBase().TokenStoreFileList();
-            if (files.Count <= 1)
+            if (files.Length <= 1)
                 return;
 
             string writerPath;

@@ -34,7 +34,7 @@ namespace IndexerLib.Tokens
             }
         }
 
-        public static byte[] SerializeTokenGroup(List<Token> tokens)
+        public static byte[] SerializeTokenGroup(Token[] tokens)
         {
             using (var stream = new MemoryStream())
             using (var writer = new MyBinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
@@ -50,16 +50,14 @@ namespace IndexerLib.Tokens
         {
             // Write token-level metadata
             writer.Write7BitEncodedInt(token.DocId);
-            writer.Write7BitEncodedInt(token.Postings.Count); // Store posting count for decoding
+            writer.Write7BitEncodedInt(token.Postings.Length); // Store posting count for decoding
 
-            // Ensure postings are ordered for delta encoding efficiency
-            var postings = token.Postings.OrderBy(x => x.Position);
-
+            //postings are orders no need to sort
             // Initialize delta reference values
             int prevPos = 0;
             int prevStart = 0;
 
-            foreach (var p in postings)
+            foreach (var p in token.Postings)
             {
                 // Write deltas: store value differences rather than absolute values
                 // Example: if current position = 105 and previous = 100, store 5 instead of 105
@@ -110,8 +108,8 @@ namespace IndexerLib.Tokens
             try
             {
                 var token = new Token { DocId = reader.Read7BitEncodedInt() };
-
                 int postingsCount = reader.Read7BitEncodedInt(); // Number of postings each token may occur more then once in a document
+                token.Postings = new Postings[postingsCount];
                 int currentPos = 0, currentStart = 0;
 
                 for (int i = 0; i < postingsCount; i++)
@@ -121,7 +119,7 @@ namespace IndexerLib.Tokens
                     currentStart += reader.Read7BitEncodedInt();
                     int len = reader.Read7BitEncodedInt();
 
-                    token.Postings.Add(new Postings
+                    token.Postings[i] = (new Postings
                     {
                         Position = currentPos,
                         Index = currentStart,

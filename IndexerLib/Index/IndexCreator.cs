@@ -18,10 +18,10 @@ namespace IndexerLib.Index
             try
             {
                 // Collect txt + pdf files
-                var files = OrderedEnumerateFiles(directory, extensions) .ToList();
+                var files = OrderedEnumerateFiles(directory, extensions).ToArray();
 
                 var indexStart = DateTime.Now;
-                int fileCount = files.Count;
+                int fileCount = files.Length;
                 int currentIndex = -1;   
 
                 using (var docIdStore = new DocIdStore()) 
@@ -41,8 +41,8 @@ namespace IndexerLib.Index
                             {
                                 var docId = docIdStore.Add(file);
                                 var tokens =  new Tokenizer(content, docId).Tokens;
-                                foreach (var token in tokens)
-                                    wal.Log(token.Key, token.Value);
+                                foreach (var entry in tokens)
+                                    wal.Log(entry.Key, entry.Value.Token);
                             }
                         }
                         catch (Exception ex)

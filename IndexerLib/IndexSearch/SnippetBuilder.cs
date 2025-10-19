@@ -13,14 +13,15 @@ namespace IndexerLib.IndexSearch
         public static void GenerateSnippets(SearchResult result, DocIdStore docIdStore, int windowSize = 100)
         {
             result.DocPath = docIdStore.GetPathById(result.DocId);
-            string docText = TextExtractor.GetText(result.DocPath);
+            string docText = TextExtractor.GetText(result.DocPath);      
+            
 
-            result.Snippets = new List<string>();
+            if (string.IsNullOrEmpty(docText) ||
+                result.MatchedPostings == null ||
+                result.MatchedPostings.Count == 0)
+                    return;
 
-            if (string.IsNullOrEmpty(docText) || result.MatchedPostings == null || result.MatchedPostings.Count == 0)
-            {
-                return;
-            }
+            var snippets = new List<string>();
 
             foreach (var postings in result.MatchedPostings)
             {
@@ -44,10 +45,10 @@ namespace IndexerLib.IndexSearch
                         Length = p.Length
                     })
                     .Where(h => h.RelativeStart < snippet.Length && h.RelativeStart + h.Length > 0)
-                    .ToList();
+                    .ToArray();
 
                 // insert marks from last to first so indices remain valid
-                for (int i = highlights.Count - 1; i >= 0; i--)
+                for (int i = highlights.Length - 1; i >= 0; i--)
                 {
                     var h = highlights[i];
                     int relStart = Math.Max(0, h.RelativeStart);
@@ -61,8 +62,10 @@ namespace IndexerLib.IndexSearch
                 // remove accidental leftover tags
                 snippet = Regex.Replace(snippet, @"<(?!/?mark\b)[^>]*>|(^[^<]*>)|(<[^>]*$)", "").Trim();
 
-                result.Snippets.Add(snippet);
+                snippets.Add(snippet);
             }
+
+            result.Snippets = snippets.ToArray();           
         }
     }
 }

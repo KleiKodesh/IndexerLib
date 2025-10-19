@@ -29,7 +29,7 @@ namespace IndexerLib.Tokens
         /// each occurrence is stored as a <see cref="Postings"/> entry rather than
         /// duplicating the token itself.
         /// </summary>
-        public List<Postings> Postings { get; set; } = new List<Postings>();
+        public Postings[] Postings { get; set; }
     }
 
     /// <summary>

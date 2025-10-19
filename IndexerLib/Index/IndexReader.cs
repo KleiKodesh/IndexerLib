@@ -1,5 +1,4 @@
-﻿using IndexerLib.Helpers;
-using IndexerLib.Tokens;
+﻿using IndexerLib.Tokens;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,7 +11,7 @@ namespace IndexerLib.Index
         protected readonly FileStream _indexStream;   // used only for index traversal
         protected readonly BinaryReader _indexReader;
 
-        protected readonly FileStream _dataStream;    // used only for block reads
+        public readonly FileStream _dataStream;    // used only for block reads
 
         protected readonly long _indexStart;
         protected readonly long _indexLength;
@@ -95,6 +94,22 @@ namespace IndexerLib.Index
             return data;
         }
 
+        public IndexKey GetKeyByIndex(int index)
+        {
+            long entryOffset = _indexStart + (index * RecordSize);
+
+            if (entryOffset + RecordSize > _indexStart + _indexLength)
+                throw new ArgumentOutOfRangeException(nameof(index), "Index out of range for index table.");
+
+            _indexStream.Seek(entryOffset + 32, SeekOrigin.Begin); // skip hash
+
+            return new IndexKey
+            {
+                Offset = _indexReader.ReadInt64(),
+                Length = _indexReader.ReadInt32()
+            };
+        }
+
         public IEnumerable<IndexKey> GetAllKeys()
         {
             _indexStream.Seek(_indexStart, SeekOrigin.Begin);
@@ -109,15 +124,15 @@ namespace IndexerLib.Index
             }
         }
 
-        public IEnumerable<KeyValuePair<IndexKey, IEnumerable<Token>>> EnumerateTokenGroups()
+        public IEnumerable<(IndexKey Key, IEnumerable<Token> Tokens)> EnumerateTokenGroups()
         {
             foreach (var key in GetAllKeys())
             {
                 byte[] data = ReadBlock(key.Offset, key.Length);
-                yield return new KeyValuePair<IndexKey, IEnumerable<Token>>
-                    (key, Serializer.DeserializeTokenGroup(data));
+                yield return (key, Serializer.DeserializeTokenGroup(data));
             }
         }
+
 
 
 
