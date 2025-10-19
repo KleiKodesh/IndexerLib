@@ -1,5 +1,6 @@
 ﻿using IndexerLib.Helpers;
 using IndexerLib.Tokens;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -125,9 +126,21 @@ namespace IndexerLib.IndexSearch
         /// These postings are typically used to construct a <see cref="SearchResult"/> instance
         /// during the streaming search process.
         /// </summary>
-        public IEnumerable<Postings> CurrentPostings =>
-            this.Where(ts => ts.Current.DocId == MinDocId)
-                .SelectMany(s => s.Current.Postings)
-                .OrderBy(p => p.Position);
-    }    
-}
+        public Postings[] CurrentPostings
+        {
+            get
+            {
+                var temp = new List<Postings>();
+                foreach (var ts in this)
+                {
+                    if (ts.Current.DocId == MinDocId)
+                        temp.AddRange(ts.Current.Postings);
+                }
+
+                var array = temp.ToArray();
+                Array.Sort(array, (a, b) => a.Position.CompareTo(b.Position));
+                return array;
+            }
+        }
+    }
+}    

@@ -121,7 +121,7 @@ namespace IndexerLib.IndexSearch
                     {
                         if (list.MinDocId == minDocId)
                         {
-                            var current = list.CurrentPostings.ToArray();
+                            var current = list.CurrentPostings;
                             if (current.Length > 0)
                                 postingsLists.Add(current);
                         }

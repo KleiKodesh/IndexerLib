@@ -103,10 +103,10 @@ namespace IndexerLib.Index
                 while (tempIndexStream.Position < tempIndexStream.Length)
                     entries.Add(new IndexKey(reader));
 
-                var sortedIndex = entries.OrderBy(k => k.Hash, new ByteArrayComparer());
+                entries.Sort((a, b) => new ByteArrayComparer().Compare(a.Hash, b.Hash));
 
                 // Append sorted index to data stream
-                foreach (var entry in sortedIndex)
+                foreach (var entry in entries)
                 {
                     _dataWriter.Write(entry.Hash);
                     _dataWriter.Write(entry.Offset);
