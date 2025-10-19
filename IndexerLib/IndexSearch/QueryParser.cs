@@ -6,18 +6,6 @@ using System.Linq;
 // test are inconclusive wich is fster this or the commented out version
 namespace IndexerLib.IndexSearch
 {
-    public class TermQuery
-    {
-        public string Term { get; }
-        public List<int> IndexPositions { get; }
-
-        public TermQuery(string term)
-        {
-            Term = term;
-            IndexPositions = new List<int>();
-        }
-    }
-
     public class QueryParser
     {
         public static TermQuery[] GenerateWordPositions(string query)

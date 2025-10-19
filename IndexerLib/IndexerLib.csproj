@@ -111,6 +111,8 @@
     <Compile Include="Helpers\MyBinaryReader.cs" />
     <Compile Include="Helpers\MyBinaryWriter.cs" />
     <Compile Include="Helpers\TextExtractor.cs" />
+    <Compile Include="IndexSearch\TermQuery.cs" />
+    <Compile Include="IndexSearch\TokenStreamer.cs" />
     <Compile Include="IndexSearch\QueryParser.cs" />
     <Compile Include="IndexSearch\SearchResult.cs" />
     <Compile Include="IndexSearch\SnippetBuilder.cs" />
@@ -123,7 +125,7 @@
     <Compile Include="Index\IndexMerger.cs" />
     <Compile Include="Index\IndexReader.cs" />
     <Compile Include="Index\IndexWriter.cs" />
-    <Compile Include="Index\TokenStreamer.cs" />
+    <Compile Include="IndexSearch\TokenStreamerList.cs" />
     <Compile Include="Index\WAL.cs" />
     <Compile Include="Index\WordsStore.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
