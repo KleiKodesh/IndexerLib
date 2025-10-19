@@ -35,7 +35,7 @@ namespace IndexerLib.Tokens
             while (index < _text.Length)
             {
                 char c = _text[index];
-                if (c.IsHebrewOrLatinLetter())
+                if (IsHebrewOrLatinLetter(c))
                     ReadWord();
                 else if (c == '<')
                     SkipHtmlTag();
@@ -56,11 +56,11 @@ namespace IndexerLib.Tokens
             {
                 char c = _text[index];
 
-                if (c.IsHebrewOrLatinLetter())
+                if (IsHebrewOrLatinLetter(c))
                     _sb.Append(c);
                 else if (c == '<')
                     SkipHtmlTag();
-                else if (c.IsDiacritic() || c == '\"')
+                else if (IsDiacritic(c) || c == '\"')
                     {   /* skip diacritics and quotes */ }
                 else
                     break;
@@ -87,7 +87,39 @@ namespace IndexerLib.Tokens
             }
         }
 
+        public bool IsHebrewOrLatinLetter(char c)
+                    => (c >= 'A' && c <= 'Z') ||
+                       (c >= 'a' && c <= 'z') ||
+                       (c >= 'א' && c <= 'ת');
 
+        static bool IsDiacritic(char c)
+        {
+            // Hebrew nikud + taamim (but exclude maqaf \u05BE)
+            if (c >= '\u0591' && c <= '\u05C7' && c != '\u05BE')
+                return true;
+
+            // Combining Diacritical Marks (U+0300–U+036F)
+            if (c >= '\u0300' && c <= '\u036F')
+                return true;
+
+            // Combining Diacritical Marks Extended (U+1AB0–U+1AFF)
+            if (c >= '\u1AB0' && c <= '\u1AFF')
+                return true;
+
+            // Combining Diacritical Marks Supplement (U+1DC0–U+1DFF)
+            if (c >= '\u1DC0' && c <= '\u1DFF')
+                return true;
+
+            // Combining Diacritical Marks for Symbols (U+20D0–U+20FF)
+            if (c >= '\u20D0' && c <= '\u20FF')
+                return true;
+
+            // Combining Half Marks (U+FE20–U+FE2F)
+            if (c >= '\uFE20' && c <= '\uFE2F')
+                return true;
+
+            return false;
+        }
 
         void SkipHtmlTag()
         {
@@ -97,5 +129,8 @@ namespace IndexerLib.Tokens
             if (index < _text.Length)
                 index++; // move past '>'
         }
+
+
+
     }
 }

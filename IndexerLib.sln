@@ -9,6 +9,20 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IndexerTest", "IndexerTest\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimplifiedIndexerLib", "SimplifiedIndexerLib\SimplifiedIndexerLib.csproj", "{7EE2DA05-44B3-4C2E-A204-8924CC36DC9A}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Backup - Old", "Backup - Old", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+	ProjectSection(SolutionItems) = preProject
+		IndexerLib\Helpers\BytesArrayHelper.cs = IndexerLib\Helpers\BytesArrayHelper.cs
+		IndexerLib\Helpers\ConsoleDotAnimator.cs = IndexerLib\Helpers\ConsoleDotAnimator.cs
+		IndexerLib\Helpers\MemoryManager.cs = IndexerLib\Helpers\MemoryManager.cs
+		IndexerLib\Tokens\RegexTokenizer.cs = IndexerLib\Tokens\RegexTokenizer.cs
+		IndexerLib\IndexSearch\SearchMatcher.cs = IndexerLib\IndexSearch\SearchMatcher.cs
+		IndexerLib\IndexSearch\SimpleSearch.cs = IndexerLib\IndexSearch\SimpleSearch.cs
+		IndexerLib\Helpers\StringExtensions.cs = IndexerLib\Helpers\StringExtensions.cs
+		IndexerLib\IndexSearch\TokenGrouping.cs = IndexerLib\IndexSearch\TokenGrouping.cs
+		IndexerLib\Tokens\Tokenizer - old.cs = IndexerLib\Tokens\Tokenizer - old.cs
+		IndexerLib\Index\TokenListReader.cs = IndexerLib\Index\TokenListReader.cs
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

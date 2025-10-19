@@ -106,22 +106,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Helpers\ByteArrayComparer.cs" />
-    <Compile Include="Helpers\BytesArrayHelper.cs" />
-    <Compile Include="Helpers\ConsoleDotAnimator.cs" />
     <Compile Include="Helpers\ConsoleSpinner.cs" />
     <Compile Include="Helpers\FsSort.cs" />
-    <Compile Include="Helpers\MemoryManager.cs" />
     <Compile Include="Helpers\MyBinaryReader.cs" />
     <Compile Include="Helpers\MyBinaryWriter.cs" />
-    <Compile Include="Helpers\StringExtensions.cs" />
     <Compile Include="Helpers\TextExtractor.cs" />
-    <Compile Include="IndexSearch\SearchMatcher.cs" />
     <Compile Include="IndexSearch\QueryParser.cs" />
-    <Compile Include="IndexSearch\SimpleSearch.cs" />
     <Compile Include="IndexSearch\SearchResult.cs" />
     <Compile Include="IndexSearch\SnippetBuilder.cs" />
     <Compile Include="IndexSearch\StreamingSearch.cs" />
-    <Compile Include="IndexSearch\TokenGrouping.cs" />
     <Compile Include="Index\Deletion.cs" />
     <Compile Include="Index\DocIdStore.cs" />
     <Compile Include="Index\IndexCreator.cs" />
@@ -130,15 +123,12 @@
     <Compile Include="Index\IndexMerger.cs" />
     <Compile Include="Index\IndexReader.cs" />
     <Compile Include="Index\IndexWriter.cs" />
-    <Compile Include="Index\TokenListReader.cs" />
     <Compile Include="Index\TokenStreamer.cs" />
     <Compile Include="Index\WAL.cs" />
     <Compile Include="Index\WordsStore.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Tokens\RegexTokenizer.cs" />
     <Compile Include="Tokens\Serializer.cs" />
     <Compile Include="Tokens\Token.cs" />
-    <Compile Include="Tokens\Tokenizer - old.cs" />
     <Compile Include="Tokens\Tokenizer.cs" />
   </ItemGroup>
   <ItemGroup>

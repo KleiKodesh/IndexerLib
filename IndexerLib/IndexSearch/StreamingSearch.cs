@@ -1,7 +1,6 @@
 ﻿using IndexerLib.Helpers;
 using IndexerLib.Index;
 using IndexerLib.Tokens;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
