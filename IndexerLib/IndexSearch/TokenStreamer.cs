@@ -21,7 +21,7 @@ namespace IndexerLib.IndexSearch
     /// In essence, <see cref="TokenStreamer"/> is a thin wrapper around a <see cref="MyBinaryReader"/>,
     /// maintaining the current read position within a segment and exposing the current <see cref="Token"/>.
     /// </summary>
-    public class TokenStreamer
+    public sealed class TokenStreamer
     {
         private readonly MyBinaryReader _reader;
         private readonly long _end;
@@ -68,7 +68,9 @@ namespace IndexerLib.IndexSearch
                 return false; // Reached end of the block.
 
             // Position the stream at the last known read offset.
-            _reader.BaseStream.Position = _pos;
+            if (_reader.BaseStream.Position != _pos)
+                _reader.BaseStream.Position = _pos;
+
 
             // Deserialize and store the next token.
             Current = Serializer.DeserializeToken(_reader);

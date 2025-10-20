@@ -14,18 +14,33 @@ namespace IndexerLib.Tokens
         const int MinWordLength = 2, MaxWordLength = 44;
         readonly string _text;
         readonly int _docId;
-        readonly Dictionary<string, (Token Token, List<Postings> Postings)> _tokens;
+        readonly Dictionary<string, (int DocId, List<Postings> Postings)> _tokens;
         readonly StringBuilder _sb = new StringBuilder(48);
         int index;
         int wordCounter;
 
-        public Dictionary<string, (Token Token, List<Postings> Postings)> Tokens => _tokens;
+        public Dictionary<string, Token> Tokens
+        {
+            get
+            {
+                var dictionary = new Dictionary<string, Token>();
+                foreach (var entry in _tokens)
+                {
+                    dictionary.Add(entry.Key, new Token
+                    {
+                        DocId = entry.Value.DocId,
+                        Postings = entry.Value.Postings.ToArray(),
+                    });
+                }
+                return dictionary;
+            }
+        }
 
         public Tokenizer(string text, int docId)
         {
             _text = text;
             _docId = docId;
-            _tokens = new Dictionary<string, (Token, List<Postings>)>(256, StringComparer.OrdinalIgnoreCase);
+            _tokens = new Dictionary<string, (int docId, List<Postings> postings)>(256, StringComparer.OrdinalIgnoreCase);
 
             Tokenize();
         }
@@ -42,9 +57,6 @@ namespace IndexerLib.Tokens
                 else
                     index++;
             }
-
-            foreach (var entry in Tokens)
-                entry.Value.Token.Postings = entry.Value.Postings.ToArray();
         }
 
         void ReadWord()
@@ -67,14 +79,13 @@ namespace IndexerLib.Tokens
 
                 index++;
             }
-
-           
+         
             if (_sb.Length >= MinWordLength && _sb.Length <= MaxWordLength)
             {
                 string w = _sb.ToString().Trim('\"');
                 if (!_tokens.TryGetValue(w, out var entry))
                 {
-                    entry = (new Token { DocId = _docId }, new List<Postings>());
+                    entry = ( _docId , new List<Postings>());
                     _tokens[w] = entry;
                 }
 
@@ -129,8 +140,5 @@ namespace IndexerLib.Tokens
             if (index < _text.Length)
                 index++; // move past '>'
         }
-
-
-
     }
 }

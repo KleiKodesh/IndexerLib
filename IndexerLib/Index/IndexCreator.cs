@@ -42,7 +42,7 @@ namespace IndexerLib.Index
                                 var docId = docIdStore.Add(file);
                                 var tokens =  new Tokenizer(content, docId).Tokens;
                                 foreach (var entry in tokens)
-                                    wal.Log(entry.Key, entry.Value.Token);
+                                    wal.Log(entry.Key, entry.Value);
                             }
                         }
                         catch (Exception ex)

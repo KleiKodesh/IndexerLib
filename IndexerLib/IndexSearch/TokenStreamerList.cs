@@ -26,7 +26,7 @@ namespace IndexerLib.IndexSearch
     /// </para>
     /// </summary>
 
-    public class TokenStreamerList : List<TokenStreamer> //?? use arrays instead of lists??
+    public sealed class TokenStreamerList : List<TokenStreamer> //?? use arrays instead of lists??
     {
         /// <summary>
         /// Gets the lowest <see cref="Token.DocId"/> currently pointed to by any active <see cref="TokenStreamer"/>.
@@ -110,8 +110,16 @@ namespace IndexerLib.IndexSearch
             // This ensures the StreamingSearch maintains a correct and synchronized merge-walk
             // across all active token streams.
             if (advanced && Count > 0)
-                MinDocId = this.Min(s => s.Current.DocId);
-
+            {
+                int min = int.MaxValue;
+                for (int i = 0; i < Count; i++)
+                {
+                    int id = this[i].Current.DocId;
+                    if (id < min)
+                        min = id;
+                }
+                MinDocId = min;
+            }
 
             return advanced;
         }
