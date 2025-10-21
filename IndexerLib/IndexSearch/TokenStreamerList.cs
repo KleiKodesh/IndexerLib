@@ -109,7 +109,7 @@ namespace IndexerLib.IndexSearch
             // Crucial step: after advancing any streamers, recompute MinDocId.
             // This ensures the StreamingSearch maintains a correct and synchronized merge-walk
             // across all active token streams.
-            if (advanced && Count > 0)
+            if (Count > 0)
             {
                 int min = int.MaxValue;
                 for (int i = 0; i < Count; i++)
